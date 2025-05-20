@@ -24,7 +24,7 @@ SCOPES = ['https://www.googleapis.com/auth/drive']
 def get_drive_service():
     """Create and return an authorized Drive API service instance."""
     credentials = service_account.Credentials.from_service_account_info(
-        SERVICE_ACCOUNT_INFO, scopes=SCOPES)
+        json.loads(SERVICE_ACCOUNT_INFO), scopes=SCOPES)
     return build('drive', 'v3', credentials=credentials)
 
 @app.route('/drive-notifications', methods=['POST'])

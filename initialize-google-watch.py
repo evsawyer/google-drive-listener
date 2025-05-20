@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from google.cloud import storage
+from google.auth.transport import requests as google_auth_requests
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -17,7 +18,7 @@ load_dotenv()
 
 # Get configuration from environment variables
 FOLDER_ID = os.getenv("FOLDER_ID")
-SERVICE_ACCOUNT_FILE = os.getenv("SERVICE_ACCOUNT_FILE")
+SERVICE_ACCOUNT_INFO = os.getenv("SERVICE_ACCOUNT_INFO")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 BUCKET_NAME = os.getenv("BUCKET_NAME")  # Add this to your .env file
 
@@ -45,8 +46,8 @@ def setup_drive_notifications():
     
     # Set up credentials
     SCOPES = ['https://www.googleapis.com/auth/drive']
-    credentials = service_account.Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+    credentials = service_account.Credentials.from_service_account_info(
+        json.loads(SERVICE_ACCOUNT_INFO), scopes=SCOPES)
     
     # Build the Drive API service
     drive_service = build('drive', 'v3', credentials=credentials)
@@ -66,13 +67,22 @@ def setup_drive_notifications():
         'type': 'web_hook',
         'address': WEBHOOK_URL,
         # Optional: Set expiration time (max 7 days)
-        'expiration': int((time.time() + 604800) * 1000)  # 7 days in milliseconds
+        # 'expiration': int((time.time() + 604800) * 1000)  # 7 days in milliseconds
     }
-    
+
+        # Get an authentication token for the webhook
+    auth_req = google_auth_requests.Request()
+    credentials.refresh(auth_req)
+    token = credentials.token
+        # Add authorization header to the request
+    headers = {
+        'Authorization': f'Bearer {token}'
+    }
     # Make the watch request on the CHANGES resource, not the FILES resource
     response = drive_service.changes().watch(
         pageToken=start_page_token,
-        body=channel
+        body=channel,
+        headers=headers
     ).execute()
     
     logger.info(f"Notification channel created: {channel_id}")
@@ -100,8 +110,8 @@ if __name__ == "__main__":
         # Verify required environment variables are set
         if not FOLDER_ID:
             raise ValueError("FOLDER_ID environment variable not set in .env file")
-        if not SERVICE_ACCOUNT_FILE:
-            raise ValueError("SERVICE_ACCOUNT_FILE environment variable not set in .env file")
+        if not SERVICE_ACCOUNT_INFO:
+            raise ValueError("SERVICE_ACCOUNT_INFO environment variable not set in .env file")
         if not WEBHOOK_URL:
             raise ValueError("WEBHOOK_URL environment variable not set in .env file")
         if not BUCKET_NAME:
