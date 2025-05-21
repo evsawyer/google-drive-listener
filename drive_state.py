@@ -9,11 +9,20 @@ def update_drive_state(new_token, files):
     bucket = client.bucket(os.getenv('BUCKET_NAME'))
     blob = bucket.blob('drive_state.json')
     
-    state = {
+    # First get existing state
+    try:
+        existing_state = json.loads(blob.download_as_string())
+    except:
+        existing_state = {}
+    
+    # Update only the specific fields
+    existing_state.update({
         'startPageToken': new_token,
         'lastKnownFiles': files
-    }
-    blob.upload_from_string(json.dumps(state))
+    })
+    
+    # Upload the merged state back
+    blob.upload_from_string(json.dumps(existing_state))
 
 def get_drive_state():
     client = storage.Client()

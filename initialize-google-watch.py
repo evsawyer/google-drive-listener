@@ -19,7 +19,7 @@ load_dotenv()
 # Get configuration from environment variables
 FOLDER_ID = os.getenv("FOLDER_ID")
 # WEBHOOK_URL = os.getenv("WEBHOOK_URL")
-WEBHOOK_URL = "https://scout-listener-104817932138.europe-west1.run.app/drive-notifications"
+WEBHOOK_URL = "https://d6963d48181d.ngrok.app/drive-notifications"
 BUCKET_NAME = os.getenv("BUCKET_NAME")  # For drive state
 SERVICE_ACCOUNT_BUCKET_NAME = os.getenv("SERVICE_ACCOUNT_BUCKET_NAME")  # For service account key
 SERVICE_ACCOUNT_KEY = os.getenv("SERVICE_ACCOUNT_KEY")  # For service account key

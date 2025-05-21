@@ -293,4 +293,27 @@ def stop_notifications():
 if __name__ == '__main__':
     # In production, use a proper WSGI server like gunicorn
     port = int(os.getenv("PORT", 8080))
+    # Download credentials.json from Cloud Storage before starting the app
+    try:
+        logger.info("Downloading credentials.json from Cloud Storage")
+        
+        # Get bucket name from environment variable
+        bucket_name = os.getenv('CREDENTIALS_BUCKET_NAME')
+        if not bucket_name:
+            logger.warning("CREDENTIALS_BUCKET_NAME environment variable not set")
+        else:
+            # Initialize storage client
+            storage_client = storage.Client()
+            
+            # Get the bucket
+            bucket = storage_client.bucket(bucket_name)
+            
+            # Download the credentials.json file
+            blob = bucket.blob('credentials.json')
+            blob.download_to_filename('credentials.json')
+            
+            logger.info("Successfully downloaded credentials.json")
+    except Exception as e:
+        logger.error(f"Error downloading credentials.json: {e}")
+        logger.exception("Full traceback:")
     app.run(host='0.0.0.0', port=port, debug=True)
