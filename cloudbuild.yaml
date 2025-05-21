@@ -1,0 +1,65 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - '--no-cache'
+      - '-t'
+      - >-
+        $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
+      - .
+      - '-f'
+      - Dockerfile
+    id: Build
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - >-
+        $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
+    id: Push
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:slim'
+    args:
+      - run
+      - services
+      - update
+      - $_SERVICE_NAME
+      - '--platform=managed'
+      - >-
+        --image=$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
+      - >-
+        --labels=managed-by=gcp-cloud-build-deploy-cloud-run,commit-sha=$COMMIT_SHA,gcb-build-id=$BUILD_ID,gcb-trigger-id=$_TRIGGER_ID
+      - '--region=$_DEPLOY_REGION'
+      - '--quiet'
+      - >-
+        --set-secrets=FOLDER_ID=projects/104817932138/secrets/${_FOLDER_ID}:latest
+      - >-
+        --set-secrets=DRIVE_ID=projects/104817932138/secrets/DRIVE_ID:latest
+      - >-
+        --set-secrets=LLAMA_CLOUD_API_KEY=projects/104817932138/secrets/LLAMA_CLOUD_API_KEY:latest
+      - >-
+        --set-secrets=OPENAI_API_KEY=projects/104817932138/secrets/OPENAI_API_KEY:latest
+      - >-
+        --set-secrets=PINECONE_API_KEY=projects/104817932138/secrets/PINECONE_API_KEY:latest
+      - >-
+        --set-secrets=POSTGRES_PASSWORD=projects/104817932138/secrets/POSTGRES_PASSWORD:latest
+      - >-
+        --set-secrets=SERVICE_ACCOUNT_INFO=projects/104817932138/secrets/SERVICE_ACCOUNT_INFO:latest
+    id: Deploy
+    entrypoint: gcloud
+images:
+  - >-
+    $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
+options:
+  substitutionOption: ALLOW_LOOSE
+  logging: CLOUD_LOGGING_ONLY
+substitutions:
+  _PLATFORM: managed
+  _SERVICE_NAME: google-drive-listener
+  _DEPLOY_REGION: europe-west1
+  _TRIGGER_ID: c60805aa-cc0f-4eeb-8c5f-4918d245bbd6
+  _AR_HOSTNAME: europe-west1-docker.pkg.dev
+  _AR_REPOSITORY: cloud-run-source-deploy
+  _AR_PROJECT_ID: knowledge-base-458316
+tags:
+  - gcp-cloud-build-deploy-cloud-run
+  - gcp-cloud-build-deploy-cloud-run-managed
+  - google-drive-listener

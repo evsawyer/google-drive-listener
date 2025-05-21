@@ -129,11 +129,11 @@ async def setup_pipeline():
     # Set up PostgreSQL connection
     logger.info("Connecting to PostgreSQL...")
     engine = await PostgresEngine.afrom_instance(
-        project_id="knowledge-base-458316",
-        region="us-central1",
-        instance="llamaindex-docstore",
-        database="docstore",
-        user="postgres",
+        project_id=os.getenv('PROJECT_ID'),
+        region=os.getenv('DB_REGION'),
+        instance=os.getenv('DB_INSTANCE'),
+        database=os.getenv('DB_NAME'),
+        user=os.getenv('DB_USER'),
         password=os.environ.get("POSTGRES_PASSWORD"),
         ip_type="public",
     )

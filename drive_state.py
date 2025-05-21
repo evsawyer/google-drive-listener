@@ -1,9 +1,12 @@
 from google.cloud import storage
 import json
+from dotenv import load_dotenv
+load_dotenv()
+import os
 
 def update_drive_state(new_token, files):
     client = storage.Client()
-    bucket = client.bucket('your-bucket')
+    bucket = client.bucket(os.getenv('BUCKET_NAME'))
     blob = bucket.blob('drive_state.json')
     
     state = {
@@ -14,6 +17,6 @@ def update_drive_state(new_token, files):
 
 def get_drive_state():
     client = storage.Client()
-    bucket = client.bucket('your-bucket')
+    bucket = client.bucket(os.getenv('BUCKET_NAME'))
     blob = bucket.blob('drive_state.json')
     return json.loads(blob.download_as_string())

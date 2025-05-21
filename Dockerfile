@@ -5,6 +5,7 @@ WORKDIR /app
 
 # Copy only the requirements file first
 COPY pyproject.toml .
+COPY uv.lock .
 
 RUN uv sync --locked
 
@@ -13,6 +14,9 @@ COPY main.py .
 COPY drive_state.py .
 COPY llama_parse_google_drive_reader.py .
 COPY run_pipeline.py .
+
+# Set the PORT environment variable to 8080
+ENV PORT=8080
 
 # Expose the port
 EXPOSE 8080
