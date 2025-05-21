@@ -46,9 +46,24 @@ def setup_drive_notifications():
     
     # Set up credentials
     SCOPES = ['https://www.googleapis.com/auth/drive']
-    credentials = service_account.Credentials.from_service_account_info(
-        json.loads(SERVICE_ACCOUNT_INFO), scopes=SCOPES)
-    
+    try:
+        # Debug: Print the raw SERVICE_ACCOUNT_INFO before parsing
+        logger.info("Raw SERVICE_ACCOUNT_INFO type: %s", type(SERVICE_ACCOUNT_INFO))
+        
+        # Try parsing the JSON and log the result
+        service_account_dict = json.loads(SERVICE_ACCOUNT_INFO)
+        logger.info("Successfully parsed service account JSON")
+        
+        credentials = service_account.Credentials.from_service_account_info(
+            service_account_dict, scopes=SCOPES)
+            
+    except json.JSONDecodeError as e:
+        logger.error("Failed to parse SERVICE_ACCOUNT_INFO as JSON: %s", e)
+        logger.error("JSON string causing error: %s", SERVICE_ACCOUNT_INFO[:100] + "...")  # Show first 100 chars
+        raise
+    except Exception as e:
+        logger.error("Other error while setting up credentials: %s", e)
+        raise
     # Build the Drive API service
     drive_service = build('drive', 'v3', credentials=credentials)
     
@@ -118,6 +133,7 @@ if __name__ == "__main__":
             raise ValueError("BUCKET_NAME environment variable not set in .env file")
             
         channel_info = setup_drive_notifications()
+
         
         logger.info(f"Successfully set up notifications!")
         

@@ -8,13 +8,35 @@ from dotenv import load_dotenv
 from llama_parse_google_drive_reader import LlamaParseGoogleDriveReader
 from run_pipeline import run_pipeline_for_documents
 from drive_state import get_drive_state, update_drive_state
+import sys
 
 # Load environment variables
 load_dotenv()
 
+# Set up Cloud Logging
+class CustomFormatter(logging.Formatter):
+    def format(self, record):
+        record.message = record.getMessage()
+        if getattr(record, 'funcName', None) == '<module>':
+            record.funcName = None
+        return {
+            'severity': record.levelname,
+            'timestamp': self.formatTime(record, self.datefmt),
+            'message': record.message,
+            'logger': record.name,
+            'function': record.funcName,
+        }
+
+# Create logger
+logger = logging.getLogger()
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(CustomFormatter())
+logger.handlers = [handler]
+logger.setLevel(logging.INFO)
+
 app = Flask(__name__)
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# logging.basicConfig(level=logging.INFO)
+# logger = logging.getLogger(__name__)
 
 # Configuration from environment variables
 FOLDER_ID = os.getenv("FOLDER_ID")
