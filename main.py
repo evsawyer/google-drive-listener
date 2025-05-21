@@ -39,6 +39,25 @@ def handle_drive_notification():
     logger.info(f"Received notification #{message_number} for channel {channel_id}")
     logger.info(f"Resource {resource_id} - State: {resource_state}")
     
+    # Get the stored state from Cloud Storage to validate the channel ID
+    try:
+        stored_info = get_drive_state()
+        stored_channel_id = stored_info.get('channelId')
+        stored_resource_id = stored_info.get('resourceId')
+        
+        # Validate the channel ID and resource ID
+        if not channel_id or channel_id != stored_channel_id:
+            logger.error(f"Invalid channel ID: {channel_id}")
+            return 'Invalid channel ID', 403
+            
+        if not resource_id or resource_id != stored_resource_id:
+            logger.error(f"Invalid resource ID: {resource_id}")
+            return 'Invalid resource ID', 403
+            
+        logger.info("Channel ID and resource ID validated successfully")
+    except Exception as e:
+        logger.error(f"Error validating notification: {e}")
+        return 'Error validating notification', 500
     # 'sync' is sent when the notification channel is first created
     if resource_state != 'sync':
         try:

@@ -82,7 +82,7 @@ def setup_drive_notifications():
     response = drive_service.changes().watch(
         pageToken=start_page_token,
         body=channel,
-        headers=headers
+        # headers=headers
     ).execute()
     
     logger.info(f"Notification channel created: {channel_id}")
