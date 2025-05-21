@@ -9,6 +9,7 @@ from llama_parse_google_drive_reader import LlamaParseGoogleDriveReader
 from run_pipeline import run_pipeline_for_documents
 from drive_state import get_drive_state, update_drive_state
 import sys
+from google.cloud import storage
 
 # Load environment variables
 load_dotenv()
@@ -19,13 +20,20 @@ logger = logging.getLogger(__name__)
 
 # Configuration from environment variables
 FOLDER_ID = os.getenv("FOLDER_ID")
-SERVICE_ACCOUNT_INFO = os.getenv("SERVICE_ACCOUNT_INFO")
 SCOPES = ['https://www.googleapis.com/auth/drive']
+
+def get_service_account_info():
+    """Get service account info from Google Cloud Storage."""
+    client = storage.Client()
+    bucket = client.bucket(os.getenv('SERVICE_ACCOUNT_BUCKET_NAME'))  # Use SERVICE_ACCOUNT_BUCKET_NAME for service account
+    blob = bucket.blob('SERVICE_ACCOUNT_KEY')
+    return json.loads(blob.download_as_string())
 
 def get_drive_service():
     """Create and return an authorized Drive API service instance."""
+    service_account_info = get_service_account_info()
     credentials = service_account.Credentials.from_service_account_info(
-        SERVICE_ACCOUNT_INFO, scopes=SCOPES)
+        service_account_info, scopes=SCOPES)
     return build('drive', 'v3', credentials=credentials)
 
 @app.route('/drive-notifications', methods=['POST'])

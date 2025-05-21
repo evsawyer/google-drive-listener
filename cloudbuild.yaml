@@ -50,7 +50,9 @@ steps:
       - >-
         --set-secrets=POSTGRES_PASSWORD=projects/104817932138/secrets/POSTGRES_PASSWORD:latest
       - >-
-        --set-secrets=SERVICE_ACCOUNT_INFO=projects/104817932138/secrets/SERVICE_ACCOUNT_INFO:latest
+        --set-secrets=SERVICE_ACCOUNT_BUCKET_NAME=projects/104817932138/secrets/SERVICE_ACCOUNT_BUCKET_NAME:latest
+      - >-
+        --set-secrets=SERVICE_ACCOUNT_KEY=projects/104817932138/secrets/SERVICE_ACCOUNT_KEY:latest
     id: Deploy
     entrypoint: gcloud
 images:
