@@ -18,11 +18,12 @@ load_dotenv()
 
 # Get configuration from environment variables
 FOLDER_ID = os.getenv("FOLDER_ID")
-SERVICE_ACCOUNT_INFO = os.getenv("SERVICE_ACCOUNT_INFO")
 # WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 WEBHOOK_URL = "https://scout-listener-104817932138.europe-west1.run.app/drive-notifications"
 BUCKET_NAME = os.getenv("BUCKET_NAME")  # For drive state
 SERVICE_ACCOUNT_BUCKET_NAME = os.getenv("SERVICE_ACCOUNT_BUCKET_NAME")  # For service account key
+SERVICE_ACCOUNT_KEY = os.getenv("SERVICE_ACCOUNT_KEY")  # For service account key
+
 
 def store_channel_info(channel_info):
     """Store channel information in Google Cloud Storage."""
@@ -43,7 +44,7 @@ def get_service_account_info():
     """Get service account info from Google Cloud Storage."""
     client = storage.Client()
     bucket = client.bucket(SERVICE_ACCOUNT_BUCKET_NAME)  # Use SERVICE_ACCOUNT_BUCKET_NAME for service account
-    blob = bucket.blob('SERVICE_ACCOUNT_KEY')
+    blob = bucket.blob(SERVICE_ACCOUNT_KEY)
     return json.loads(blob.download_as_string())
 
 def setup_drive_notifications():
