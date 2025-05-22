@@ -10,6 +10,8 @@ from run_pipeline import run_pipeline_for_documents
 from drive_state import get_drive_state, update_drive_state
 import sys
 from google.cloud import storage
+import aiohttp
+import asyncio
 
 # Load environment variables
 load_dotenv()
@@ -290,7 +292,7 @@ def stop_notifications():
             'error': str(e)
         }), 500
 
-def process_all_existing_files():
+async def process_all_existing_files():
     """Process all files stored in the drive state at startup."""
     try:
         logger.info("Starting initial processing of all existing files...")
@@ -308,18 +310,19 @@ def process_all_existing_files():
         # Extract all file IDs
         file_ids = [file.get('id') for file in current_files]
         
-        # Use existing process_changed_files function
-        docs = process_changed_files(file_ids, current_files)
-        
-        if docs:
-            logger.info(f"Processing {len(docs)} documents through pipeline...")
-            pipeline_success = run_pipeline_for_documents(docs)
-            if pipeline_success:
-                logger.info("Successfully processed all existing documents")
+        async with aiohttp.ClientSession() as session:
+            # Use existing process_changed_files function
+            docs = process_changed_files(file_ids, current_files)
+            
+            if docs:
+                logger.info(f"Processing {len(docs)} documents through pipeline...")
+                pipeline_success = run_pipeline_for_documents(docs)
+                if pipeline_success:
+                    logger.info("Successfully processed all existing documents")
+                else:
+                    logger.error("Failed to process documents through the pipeline")
             else:
-                logger.error("Failed to process documents through the pipeline")
-        else:
-            logger.warning("No documents were processed")
+                logger.warning("No documents were processed")
             
     except Exception as e:
         logger.error(f"Error processing existing files at startup: {e}")
@@ -354,7 +357,7 @@ if __name__ == '__main__':
         logger.exception("Full traceback:")
 
     # Process all existing files at startup
-    process_all_existing_files()
+    asyncio.run(process_all_existing_files())
     
     # Start the Flask app
     app.run(host='0.0.0.0', port=port, debug=True)
