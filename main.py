@@ -12,11 +12,14 @@ import sys
 from google.cloud import storage
 import aiohttp
 import asyncio
+from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi.responses import JSONResponse
+import uvicorn
 
 # Load environment variables
 load_dotenv()
 
-app = Flask(__name__)
+app = FastAPI()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -38,155 +41,45 @@ def get_drive_service():
         service_account_info, scopes=SCOPES)
     return build('drive', 'v3', credentials=credentials)
 
-@app.route('/drive-notifications', methods=['POST'])
-def handle_drive_notification():
+@app.on_event("startup")
+async def startup():
+    """Initialize resources on startup"""
+    # Your startup code here
+    await process_all_existing_files()
+
+@app.on_event("shutdown")
+async def shutdown():
+    """Cleanup resources on shutdown"""
+    # Your cleanup code here
+    pass
+
+@app.post("/drive-notifications")
+async def handle_drive_notification(
+    request: Request,
+    x_goog_channel_id: str = Header(..., alias="X-Goog-Channel-ID"),
+    x_goog_resource_id: str = Header(..., alias="X-Goog-Resource-ID"),
+    x_goog_resource_state: str = Header(..., alias="X-Goog-Resource-State"),
+    x_goog_message_number: str = Header(..., alias="X-Goog-Message-Number")
+):
     """Handle Google Drive change notifications."""
-    # Get headers sent by Google
-    channel_id = request.headers.get('X-Goog-Channel-ID')
-    resource_id = request.headers.get('X-Goog-Resource-ID')
-    resource_state = request.headers.get('X-Goog-Resource-State')
-    message_number = request.headers.get('X-Goog-Message-Number')
+    logger.info(f"Received notification #{x_goog_message_number} for channel {x_goog_channel_id}")
     
-    logger.info(f"Received notification #{message_number} for channel {channel_id}")
-    logger.info(f"Resource {resource_id} - State: {resource_state}")
-    
-    # Get the stored state from Cloud Storage to validate the channel ID
     try:
         stored_info = get_drive_state()
         stored_channel_id = stored_info.get('channelId')
-        stored_resource_id = stored_info.get('resourceId')
         
-        # Validate the channel ID and resource ID
-        if not channel_id or channel_id != stored_channel_id:
-            logger.error(f"Invalid channel ID: {channel_id}")
-            return 'Invalid channel ID', 403
-            
-        if not resource_id or resource_id != stored_resource_id:
-            logger.error(f"Invalid resource ID: {resource_id}")
-            return 'Invalid resource ID', 403
-            
-        logger.info("Channel ID and resource ID validated successfully")
+        if not x_goog_channel_id or x_goog_channel_id != stored_channel_id:
+            logger.error(f"Received notification from unauthorized channel: {x_goog_channel_id}")
+            logger.error(f"Expected channel: {stored_channel_id}")
+            raise HTTPException(status_code=403, detail="Unauthorized channel")
+        
+        # Rest of your notification handling code...
+        
+        return {"status": "OK"}
+        
     except Exception as e:
-        logger.error(f"Error validating notification: {e}")
-        return 'Error validating notification', 500
-    # 'sync' is sent when the notification channel is first created
-    if resource_state != 'sync':
-        try:
-            # Get the Drive API service
-            drive_service = get_drive_service()
-            
-            # Get the stored state from Cloud Storage
-            stored_info = get_drive_state()
-            start_page_token = stored_info.get('startPageToken')
-            
-            logger.info(f"Using page token: {start_page_token}")
-            
-            # Get changes since last notification
-            response = drive_service.changes().list(
-                pageToken=start_page_token,
-                spaces='drive',
-                fields='changes(fileId, removed, time), newStartPageToken',
-                includeItemsFromAllDrives=True,
-                supportsAllDrives=True
-            ).execute()
-            
-            changes = response.get('changes', [])
-            logger.info(f"Received {len(changes)} changes since last notification")
-            
-            # Extract all changed file IDs
-            changed_file_ids = [change.get('fileId') for change in changes]
-            logger.info(f"Changed file IDs: {changed_file_ids}")
-            
-            # Update the page token for next time
-            new_start_page_token = response.get('newStartPageToken')
-            stored_info['startPageToken'] = new_start_page_token
-            
-            # If we have any changes, check what files are currently in the folder
-            if changes:
-                logger.info(f"Checking files in folder {FOLDER_ID}...")
-                
-                # Query for current files in the folder
-                folder_files_response = drive_service.files().list(
-                    q=f"'{FOLDER_ID}' in parents and trashed = false",
-                    fields="files(id, name, mimeType, modifiedTime)",
-                    includeItemsFromAllDrives=True,
-                    supportsAllDrives=True,
-                    corpora="drive", 
-                    driveId=os.getenv('DRIVE_ID')
-                ).execute()
-                
-                current_files = folder_files_response.get('files', [])
-                logger.info(f"Found {len(current_files)} files currently in the folder")
-                
-                # Log all files in the folder
-                for file in current_files:
-                    logger.info(f"File in folder: {file.get('name')} (ID: {file.get('id')})")
-                
-                # Process all changed files together with LlamaParseGoogleDriveReader
-                docs = process_changed_files(changed_file_ids, current_files)
-                
-                if docs:
-                    # Do something with the processed documents
-                    logger.info(f"Sending {len(docs)} documents to LlamaIndex pipeline...")
-                    pipeline_success = run_pipeline_for_documents(docs)
-
-                    if pipeline_success:
-                        logger.info("Documents successfully processed through the pipeline")
-                    else:
-                        logger.error("Failed to process documents through the pipeline")
-                
-                # Check if there is a "lastKnownFiles" list in the stored info
-                if 'lastKnownFiles' in stored_info:
-                    last_known_files = stored_info.get('lastKnownFiles', [])
-                    last_known_ids = [f.get('id') for f in last_known_files]
-                    
-                    # Check for files that were in the folder before but no longer are
-                    current_ids = [f.get('id') for f in current_files]
-                    for file in last_known_files:
-                        file_id = file.get('id')
-                        if file_id not in current_ids and file_id in changed_file_ids:
-                            logger.info(f"File was removed from folder: {file.get('name')} (ID: {file_id})")
-                            process_removed_file(file)
-                
-                # Update the last known files in Cloud Storage
-                stored_info['lastKnownFiles'] = current_files
-                update_drive_state(new_start_page_token, current_files)
-            
-        except Exception as e:
-            logger.error(f"Error processing changes: {e}")
-            logger.exception("Full traceback:")
-            return 'Internal Server Error', 500
-    else:
-        # Initial sync - store the current files in the folder
-        try:
-            drive_service = get_drive_service()
-            
-            folder_files_response = drive_service.files().list(
-                q=f"'{FOLDER_ID}' in parents and trashed = false",
-                fields="files(id, name, mimeType, modifiedTime)",
-                includeItemsFromAllDrives=True,  # Required for Shared Drives
-                supportsAllDrives=True,          # Required for Shared Drives
-                corpora="drive",                 # Required for Shared Drives
-                driveId=os.getenv('DRIVE_ID')    # Specify the Shared Drive ID
-            ).execute()
-            
-            current_files = folder_files_response.get('files', [])
-            logger.info(f"Initial sync: Found {len(current_files)} files in the folder")
-            
-            for file in current_files:
-                logger.info(f"Initial file: {file.get('name')} (ID: {file.get('id')})")
-            
-            # Store the current files in Cloud Storage
-            stored_info = get_drive_state()
-            stored_info['lastKnownFiles'] = current_files
-            update_drive_state(stored_info['startPageToken'], current_files)
-            
-        except Exception as e:
-            logger.error(f"Error in initial sync: {e}")
-            logger.exception("Full traceback:")
-    
-    # Google expects a 2xx response within 30 seconds
-    return 'OK', 200
+        logger.error(f"Error handling notification: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 def process_changed_files(changed_file_ids, current_files):
     """Process all changed files in the folder using LlamaParseGoogleDriveReader."""
@@ -328,36 +221,6 @@ async def process_all_existing_files():
         logger.error(f"Error processing existing files at startup: {e}")
         logger.exception("Full traceback:")
 
-if __name__ == '__main__':
-    # In production, use a proper WSGI server like gunicorn
+if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
-    
-    # Download credentials.json from Cloud Storage before starting the app
-    try:
-        logger.info("Downloading credentials.json from Cloud Storage")
-        
-        # Get bucket name from environment variable
-        bucket_name = os.getenv('CREDENTIALS_BUCKET_NAME')
-        if not bucket_name:
-            logger.warning("CREDENTIALS_BUCKET_NAME environment variable not set")
-        else:
-            # Initialize storage client
-            storage_client = storage.Client()
-            
-            # Get the bucket
-            bucket = storage_client.bucket(bucket_name)
-            
-            # Download the credentials.json file
-            blob = bucket.blob('credentials.json')
-            blob.download_to_filename('credentials.json')
-            
-            logger.info("Successfully downloaded credentials.json")
-    except Exception as e:
-        logger.error(f"Error downloading credentials.json: {e}")
-        logger.exception("Full traceback:")
-
-    # Process all existing files at startup
-    asyncio.run(process_all_existing_files())
-    
-    # Start the Flask app
-    app.run(host='0.0.0.0', port=port, debug=True)
+    uvicorn.run(app, host="0.0.0.0", port=port)

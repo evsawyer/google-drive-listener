@@ -21,5 +21,5 @@ ENV PORT=8080
 # Expose the port
 EXPOSE 8080
 
-# Run the application
-CMD ["uv", "run", "python", "main.py"]
+# Run the application with uvicorn
+CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]

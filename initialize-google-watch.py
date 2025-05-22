@@ -53,7 +53,10 @@ def setup_drive_notifications():
     logger.info(f"Using webhook URL: {WEBHOOK_URL}")
     
     # Set up credentials and drive service
-    SCOPES = ['https://www.googleapis.com/auth/drive']
+    SCOPES = [
+        'https://www.googleapis.com/auth/drive',
+        'https://www.googleapis.com/auth/drive.readonly'  # Added for channels.list
+    ]
     service_account_info = get_service_account_info()
     credentials = service_account.Credentials.from_service_account_info(
         service_account_info, scopes=SCOPES)
