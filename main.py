@@ -5,7 +5,9 @@ from flask import Flask, request, jsonify
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from dotenv import load_dotenv
-from llama_parse_google_drive_reader import LlamaParseGoogleDriveReader
+
+# unfortunately this is deprecated for now.
+# from llama_parse_google_drive_reader import LlamaParseGoogleDriveReader
 from llama_index.readers.google import GoogleDriveReader
 
 from run_pipeline import run_pipeline_for_documents
@@ -27,7 +29,6 @@ class Settings(BaseSettings):
     # Google Drive related
     folder_id: str = os.getenv("FOLDER_ID")
     drive_id: str = os.getenv("DRIVE_ID")
-    webhook_url: str = os.getenv("WEBHOOK_URL")
     
     # Service Account and Storage
     service_account_bucket_name: str = os.getenv("SERVICE_ACCOUNT_BUCKET_NAME")
