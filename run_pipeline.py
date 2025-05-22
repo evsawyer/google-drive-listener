@@ -31,6 +31,7 @@ required_env_vars = [
     "OPENAI_API_KEY",
     "PINECONE_API_KEY",
     "PINECONE_INDEX_NAME",
+    "PINECONE_NAMESPACE",
     "POSTGRES_PASSWORD",
 ]
 
@@ -148,12 +149,13 @@ async def setup_pipeline():
     
     # Set up Pinecone
     logger.info("Connecting to Pinecone...")
-    pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
-    index_name = os.environ.get("PINECONE_INDEX_NAME")
+    pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+    index_name = os.getenv("PINECONE_INDEX_NAME")
     
     # Create vector store
-    logger.info(f"Creating Pinecone vector store with index: {index_name}")
-    vector_store = PineconeVectorStore(pc.Index(index_name), namespace = os.environ.get("PINECONE_NAMESPACE"))
+    namespace = os.getenv("PINECONE_NAMESPACE")
+    logger.info(f"Creating Pinecone vector store with index: {index_name}, namespace: {namespace}")
+    vector_store = PineconeVectorStore(pc.Index(index_name), namespace=namespace)
     
     # Create node parser and extractor
     logger.info("Creating node parser and metadata extractor...")
@@ -162,17 +164,18 @@ async def setup_pipeline():
         chunk_size=8191, 
         chunk_overlap=0
     )
-    
-    description_extractor = DescriptionMetadataExtractor(
-        marvin_model=DescriptionMetadata
-    )
+
+# deprecated. only works when using the LlamaParseGoogleDriveReader
+    # description_extractor = DescriptionMetadataExtractor(
+    #     marvin_model=DescriptionMetadata
+    # )
     
     # Create ingestion pipeline
     logger.info("Creating ingestion pipeline...")
     pipeline = IngestionPipeline(
         transformations=[
             node_parser,
-            description_extractor
+            # description_extractor
         ],
         docstore=doc_store,
         vector_store=vector_store,
@@ -214,7 +217,7 @@ async def process_documents(docs: List[Document]):
         return None
 
 # Function to run from the webhook
-def run_pipeline_for_documents(docs: List[Document]) -> bool:
+async def run_pipeline_for_documents(docs: List[Document]) -> bool:
     """Run the pipeline for a list of documents. Returns True if successful."""
     if not docs:
         logger.warning("No documents to process")
@@ -224,7 +227,7 @@ def run_pipeline_for_documents(docs: List[Document]) -> bool:
     
     try:
         # Run the async pipeline using asyncio
-        nodes = asyncio.run(process_documents(docs))
+        nodes = await process_documents(docs)
         
         if nodes:
             logger.info(f"Successfully processed {len(nodes)} nodes")
@@ -240,17 +243,4 @@ def run_pipeline_for_documents(docs: List[Document]) -> bool:
 
 # For testing the module directly
 if __name__ == "__main__":
-    from llama_index.core.schema import Document
-    
-    # Create a test document
-    test_doc = Document(
-        text="This is a test document for the LlamaIndex pipeline.",
-        metadata={
-            "description": "Origin: Internal upload, User: test@ivc.media, Client: IVC Media, Title: Test Document, Tags: test, internal, pipeline",
-            "file_name": "test_document.txt"
-        }
-    )
-    
-    # Test the pipeline
-    success = run_pipeline_for_documents([test_doc])
-    print(f"Pipeline test {'succeeded' if success else 'failed'}")
+    pass  # or just remove this block entirely

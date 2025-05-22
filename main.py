@@ -6,6 +6,8 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from dotenv import load_dotenv
 from llama_parse_google_drive_reader import LlamaParseGoogleDriveReader
+from llama_index.readers.google import GoogleDriveReader
+
 from run_pipeline import run_pipeline_for_documents
 from drive_state import get_drive_state, update_drive_state
 import sys
@@ -15,23 +17,77 @@ import asyncio
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 import uvicorn
+from pydantic_settings import BaseSettings
+from contextlib import asynccontextmanager
 
 # Load environment variables
 load_dotenv()
 
-app = FastAPI()
+class Settings(BaseSettings):
+    # Google Drive related
+    folder_id: str = os.getenv("FOLDER_ID")
+    drive_id: str = os.getenv("DRIVE_ID")
+    webhook_url: str = os.getenv("WEBHOOK_URL")
+    
+    # Service Account and Storage
+    service_account_bucket_name: str = os.getenv("SERVICE_ACCOUNT_BUCKET_NAME")
+    service_account_key: str = os.getenv("SERVICE_ACCOUNT_KEY")
+    bucket_name: str = os.getenv("BUCKET_NAME")
+    credentials_bucket_name: str = os.getenv("CREDENTIALS_BUCKET_NAME")
+    service_account_info: str = os.getenv("SERVICE_ACCOUNT_INFO")
+    
+    # API Keys
+    pinecone_api_key: str = os.getenv("PINECONE_API_KEY")
+    openai_api_key: str = os.getenv("OPENAI_API_KEY")
+    llama_cloud_api_key: str = os.getenv("LLAMA_CLOUD_API_KEY")
+    
+    # Database Configuration
+    postgres_password: str = os.getenv("POSTGRES_PASSWORD")
+    project_id: str = os.getenv("PROJECT_ID")
+    db_region: str = os.getenv("DB_REGION")
+    db_instance: str = os.getenv("DB_INSTANCE")
+    db_name: str = os.getenv("DB_NAME")
+    db_user: str = os.getenv("DB_USER")
+    
+    # Pinecone Configuration
+    pinecone_index_name: str = os.getenv("PINECONE_INDEX_NAME")
+    pinecone_namespace: str = os.getenv("PINECONE_NAMESPACE")
+    
+    # Server Configuration
+    port: int = int(os.getenv("PORT", "8080"))
+
+    class Config:
+        case_sensitive = False
+
+# Initialize settings
+settings = Settings()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifecycle manager for the FastAPI app"""
+    logger.info("Starting up FastAPI application...")
+    try:
+        await process_all_existing_files()
+        yield
+    except Exception as e:
+        logger.error(f"Error during startup: {e}")
+        yield
+    finally:
+        logger.info("Shutting down FastAPI application...")
+
+app = FastAPI(lifespan=lifespan)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Configuration from environment variables
-FOLDER_ID = os.getenv("FOLDER_ID")
+
 SCOPES = ['https://www.googleapis.com/auth/drive']
 
 def get_service_account_info():
     """Get service account info from Google Cloud Storage."""
     client = storage.Client()
-    bucket = client.bucket(os.getenv('SERVICE_ACCOUNT_BUCKET_NAME'))  # Use SERVICE_ACCOUNT_BUCKET_NAME for service account
-    blob = bucket.blob(os.getenv('SERVICE_ACCOUNT_KEY'))
+    bucket = client.bucket(settings.service_account_bucket_name)
+    blob = bucket.blob(settings.service_account_key)
     return json.loads(blob.download_as_string())
 
 def get_drive_service():
@@ -40,18 +96,6 @@ def get_drive_service():
     credentials = service_account.Credentials.from_service_account_info(
         service_account_info, scopes=SCOPES)
     return build('drive', 'v3', credentials=credentials)
-
-@app.on_event("startup")
-async def startup():
-    """Initialize resources on startup"""
-    # Your startup code here
-    await process_all_existing_files()
-
-@app.on_event("shutdown")
-async def shutdown():
-    """Cleanup resources on shutdown"""
-    # Your cleanup code here
-    pass
 
 @app.post("/drive-notifications")
 async def handle_drive_notification(
@@ -66,6 +110,7 @@ async def handle_drive_notification(
     
     try:
         stored_info = get_drive_state()
+        start_page_token = stored_info.get('startPageToken')
         stored_channel_id = stored_info.get('channelId')
         
         if not x_goog_channel_id or x_goog_channel_id != stored_channel_id:
@@ -73,7 +118,66 @@ async def handle_drive_notification(
             logger.error(f"Expected channel: {stored_channel_id}")
             raise HTTPException(status_code=403, detail="Unauthorized channel")
         
-        # Rest of your notification handling code...
+        # Get the Drive API service
+        drive_service = get_drive_service()
+        
+        logger.info(f"Using page token: {start_page_token}")
+        
+        # Get changes since last notification
+        response = drive_service.changes().list(
+            pageToken=start_page_token,
+            spaces='drive',
+            fields='changes(fileId, removed, time), newStartPageToken',
+            includeItemsFromAllDrives=True,
+            supportsAllDrives=True
+        ).execute()
+        
+        changes = response.get('changes', [])
+        logger.info(f"Received {len(changes)} changes since last notification")
+        
+        # Extract all changed file IDs
+        changed_file_ids = [change.get('fileId') for change in changes]
+        logger.info(f"Changed file IDs: {changed_file_ids}")
+        
+        # Update the page token for next time
+        new_start_page_token = response.get('newStartPageToken')
+        stored_info['startPageToken'] = new_start_page_token
+        
+        # If we have any changes, check what files are currently in the folder
+        if changes:
+            logger.info(f"Checking files in folder {settings.folder_id}...")
+            
+            # Query for current files in the folder
+            folder_files_response = drive_service.files().list(
+                q=f"'{settings.folder_id}' in parents and trashed = false",
+                fields="files(id, name, mimeType, modifiedTime)",
+                includeItemsFromAllDrives=True,
+                supportsAllDrives=True,
+                corpora="drive", 
+                driveId=settings.drive_id
+            ).execute()
+            
+            current_files = folder_files_response.get('files', [])
+            logger.info(f"Found {len(current_files)} files currently in the folder")
+            
+            # Log all files in the folder
+            for file in current_files:
+                logger.info(f"File in folder: {file.get('name')} (ID: {file.get('id')})")
+            
+            # Process all changed files together with GoogleDriveReader
+            docs = process_files_in_folder(changed_file_ids, current_files)
+        
+            if docs:
+                logger.info(f"Processing {len(docs)} documents through pipeline...")
+                pipeline_success = await run_pipeline_for_documents(docs)
+                if pipeline_success:
+                    logger.info("Successfully processed documents")
+                else:
+                    logger.error("Failed to process documents through the pipeline")
+        
+            # Update the stored state with current files
+            stored_info['lastKnownFiles'] = current_files
+            update_drive_state(stored_info['startPageToken'], current_files)
         
         return {"status": "OK"}
         
@@ -81,19 +185,19 @@ async def handle_drive_notification(
         logger.error(f"Error handling notification: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-def process_changed_files(changed_file_ids, current_files):
-    """Process all changed files in the folder using LlamaParseGoogleDriveReader."""
+def process_files_in_folder(changed_file_ids, current_files):
+    """Process all changed files in the folder using GoogleDriveReader."""
     try:
         # Filter to only get file IDs that exist in the folder
         folder_file_ids = [file.get('id') for file in current_files]
         file_ids_to_process = [file_id for file_id in changed_file_ids if file_id in folder_file_ids]
         
         if not file_ids_to_process:
-            logger.info("No files to process with LlamaParseGoogleDriveReader")
+            logger.info("No files to process with GoogleDriveReader")
             return None
         
         # Log what we're about to process
-        logger.info(f"Processing {len(file_ids_to_process)} files with LlamaParseGoogleDriveReader")
+        logger.info(f"Processing {len(file_ids_to_process)} files with GoogleDriveReader")
         for file_id in file_ids_to_process:
             for file in current_files:
                 if file.get('id') == file_id:
@@ -101,19 +205,20 @@ def process_changed_files(changed_file_ids, current_files):
                     break
         
         # Check if LLAMA_CLOUD_API_KEY is set
-        if not os.getenv("LLAMA_CLOUD_API_KEY"):
-            logger.error("LLAMA_CLOUD_API_KEY is not set. Cannot process files with LlamaParseGoogleDriveReader.")
+        if not settings.llama_cloud_api_key:
+            logger.error("LLAMA_CLOUD_API_KEY is not set...")
             return None
         
         # Initialize the loader
-        loader = LlamaParseGoogleDriveReader()
+        loader = GoogleDriveReader()
         
         # Load the documents with the list of file IDs
         logger.info(f"Calling loader.load_data with file_ids={file_ids_to_process}")
+
         docs = loader.load_data(file_ids=file_ids_to_process)
         
         if not docs:
-            logger.warning("No documents returned from LlamaParseGoogleDriveReader")
+            logger.warning("No documents returned from GoogleDriveReader")
             return None
         
         # Log successful loading
@@ -122,7 +227,7 @@ def process_changed_files(changed_file_ids, current_files):
         return docs
         
     except Exception as e:
-        logger.error(f"Error processing files with LlamaParseGoogleDriveReader: {e}")
+        logger.error(f"Error processing files with GoogleDriveReader: {e}")
         logger.exception("Full traceback:")
         return None
 
@@ -203,24 +308,22 @@ async def process_all_existing_files():
         # Extract all file IDs
         file_ids = [file.get('id') for file in current_files]
         
-        async with aiohttp.ClientSession() as session:
-            # Use existing process_changed_files function
-            docs = process_changed_files(file_ids, current_files)
-            
-            if docs:
-                logger.info(f"Processing {len(docs)} documents through pipeline...")
-                pipeline_success = run_pipeline_for_documents(docs)
-                if pipeline_success:
-                    logger.info("Successfully processed all existing documents")
-                else:
-                    logger.error("Failed to process documents through the pipeline")
+        docs = process_files_in_folder(file_ids, current_files)
+        
+        if docs:
+            logger.info(f"Processing {len(docs)} documents through pipeline...")
+            pipeline_success = await run_pipeline_for_documents(docs)
+            if pipeline_success:
+                logger.info("Successfully processed all existing documents")
             else:
-                logger.warning("No documents were processed")
+                logger.error("Failed to process documents through the pipeline")
+        else:
+            logger.warning("No documents were processed")
             
     except Exception as e:
         logger.error(f"Error processing existing files at startup: {e}")
         logger.exception("Full traceback:")
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8080))
+    port = settings.port
     uvicorn.run(app, host="0.0.0.0", port=port)
