@@ -36,6 +36,9 @@ steps:
       - '--update-env-vars=DB_INSTANCE=${_DB_INSTANCE}'
       - '--update-env-vars=DB_NAME=${_DB_NAME}'
       - '--update-env-vars=DB_REGION=${_DB_REGION}'
+      - '--update-env-vars=CREDENTIALS_BUCKET_NAME=${_CREDENTIALS_BUCKET_NAME}'
+      - '--update-env-vars=SERVICE_ACCOUNT_BUCKET_NAME=${_SERVICE_ACCOUNT_BUCKET_NAME}'
+      - '--update-env-vars=SERVICE_ACCOUNT_KEY=${_SERVICE_ACCOUNT_KEY}'
       - '--update-env-vars=DB_USER=${_DB_USER}'
       - >-
         --set-secrets=FOLDER_ID=projects/104817932138/secrets/${_FOLDER_ID}:latest
