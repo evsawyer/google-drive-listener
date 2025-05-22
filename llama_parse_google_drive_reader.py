@@ -55,6 +55,20 @@ class LlamaParseGoogleDriveReader(GoogleDriveReader):
             split_by_page (bool): Whether to split documents by page
             **kwargs: Additional arguments passed to GoogleDriveReader
         """
+        # Get service account info before calling super().__init__
+        from google.cloud import storage
+        import os
+        import json
+        
+        client = storage.Client()
+        bucket = client.bucket(os.getenv('SERVICE_ACCOUNT_BUCKET_NAME'))
+        blob = bucket.blob(os.getenv('SERVICE_ACCOUNT_KEY'))
+        service_account_key = json.loads(blob.download_as_string())
+        
+        # Add service_account_key to kwargs
+        kwargs['service_account_key'] = service_account_key
+        kwargs['is_cloud'] = True  # Important: tell it we're in a cloud environment
+        
         super().__init__(**kwargs)
         
         # Initialize LlamaParse as a private attribute
