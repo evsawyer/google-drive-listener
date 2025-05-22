@@ -35,7 +35,6 @@ class Settings(BaseSettings):
     service_account_key: str = os.getenv("SERVICE_ACCOUNT_KEY")
     bucket_name: str = os.getenv("BUCKET_NAME")
     credentials_bucket_name: str = os.getenv("CREDENTIALS_BUCKET_NAME")
-    service_account_info: str = os.getenv("SERVICE_ACCOUNT_INFO")
     
     # API Keys
     pinecone_api_key: str = os.getenv("PINECONE_API_KEY")
@@ -53,9 +52,6 @@ class Settings(BaseSettings):
     # Pinecone Configuration
     pinecone_index_name: str = os.getenv("PINECONE_INDEX_NAME")
     pinecone_namespace: str = os.getenv("PINECONE_NAMESPACE")
-    
-    # Server Configuration
-    port: int = int(os.getenv("PORT", "8080"))
 
     class Config:
         case_sensitive = False
