@@ -290,9 +290,45 @@ def stop_notifications():
             'error': str(e)
         }), 500
 
+def process_all_existing_files():
+    """Process all files stored in the drive state at startup."""
+    try:
+        logger.info("Starting initial processing of all existing files...")
+        
+        # Get the stored state from Cloud Storage
+        stored_info = get_drive_state()
+        current_files = stored_info.get('lastKnownFiles', [])
+        
+        if not current_files:
+            logger.info("No existing files found in drive state")
+            return
+            
+        logger.info(f"Found {len(current_files)} files to process")
+        
+        # Extract all file IDs
+        file_ids = [file.get('id') for file in current_files]
+        
+        # Use existing process_changed_files function
+        docs = process_changed_files(file_ids, current_files)
+        
+        if docs:
+            logger.info(f"Processing {len(docs)} documents through pipeline...")
+            pipeline_success = run_pipeline_for_documents(docs)
+            if pipeline_success:
+                logger.info("Successfully processed all existing documents")
+            else:
+                logger.error("Failed to process documents through the pipeline")
+        else:
+            logger.warning("No documents were processed")
+            
+    except Exception as e:
+        logger.error(f"Error processing existing files at startup: {e}")
+        logger.exception("Full traceback:")
+
 if __name__ == '__main__':
     # In production, use a proper WSGI server like gunicorn
     port = int(os.getenv("PORT", 8080))
+    
     # Download credentials.json from Cloud Storage before starting the app
     try:
         logger.info("Downloading credentials.json from Cloud Storage")
@@ -316,4 +352,9 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Error downloading credentials.json: {e}")
         logger.exception("Full traceback:")
+
+    # Process all existing files at startup
+    process_all_existing_files()
+    
+    # Start the Flask app
     app.run(host='0.0.0.0', port=port, debug=True)
