@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     pinecone_index_name: str = 'google-drive-knowledge-base'
     pinecone_namespace: str = os.getenv("PINECONE_NAMESPACE")
 
+    # API Keys
+    pinecone_api_key: str = os.getenv("PINECONE_API_KEY")
+    openai_api_key: str = os.getenv("OPENAI_API_KEY")
+    llama_cloud_api_key: str = os.getenv("LLAMA_CLOUD_API_KEY")
+
     class Config:
         case_sensitive = False
 

@@ -26,19 +26,6 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
-# Check for required environment variables
-required_env_vars = [
-    "OPENAI_API_KEY",
-    "PINECONE_API_KEY",
-    "PINECONE_INDEX_NAME",
-    "PINECONE_NAMESPACE",
-    "POSTGRES_PASSWORD",
-]
-
-for var in required_env_vars:
-    if not os.getenv(var):
-        logger.error(f"Missing required environment variable: {var}")
-
 # Configure Marvin
 # marvin.settings.openai.api_key = os.environ.get("OPENAI_API_KEY")
 # marvin.settings.openai.chat.completions.model = "gpt-4o"

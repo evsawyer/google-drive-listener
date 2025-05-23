@@ -38,6 +38,8 @@ service_account_key = json.loads(blob.download_as_string())
 async def lifespan(app: FastAPI):
     """Lifecycle manager for the FastAPI app"""
     logger.info("Starting up FastAPI application...")
+    for key, value in vars(settings).items():
+        logger.info(f"{key}: {value}")
     try:
         await process_all_existing_files()
         yield
