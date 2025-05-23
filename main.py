@@ -59,6 +59,15 @@ class Settings(BaseSettings):
 # Initialize settings
 settings = Settings()
 
+client = storage.Client()
+bucket = client.bucket(settings.service_account_bucket_name)
+blob = bucket.blob(settings.service_account_key)
+service_account_key = json.loads(blob.download_as_string())
+
+# Add service_account_key to kwargs
+
+        
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle manager for the FastAPI app"""
@@ -207,7 +216,7 @@ def process_files_in_folder(changed_file_ids, current_files):
             return None
         
         # Initialize the loader
-        loader = GoogleDriveReader()
+        loader = GoogleDriveReader(service_account_key=service_account_key, is_cloud=True)
         
         # Load the documents with the list of file IDs
         logger.info(f"Calling loader.load_data with file_ids={file_ids_to_process}")
