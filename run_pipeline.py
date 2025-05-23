@@ -158,7 +158,7 @@ async def setup_pipeline():
     vector_store = PineconeVectorStore(pc.Index(index_name), namespace=namespace)
     
     # Create node parser and extractor
-    logger.info("Creating node parser and metadata extractor...")
+    logger.info("Creating node parser...")
     node_parser = TokenTextSplitter(
         separator=" ", 
         chunk_size=8191, 

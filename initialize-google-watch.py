@@ -20,7 +20,7 @@ load_dotenv()
 FOLDER_ID = settings.folder_id
 DRIVE_ID = settings.drive_id
 # WEBHOOK_URL = os.getenv("WEBHOOK_URL")
-WEBHOOK_URL = settings.webhook_url
+WEBHOOK_URL = 'https://drive-reader-104817932138.europe-west1.run.app/drive-notifications'
 DRIVE_STATE_BUCKET_NAME = settings.drive_state_bucket_name
 BUCKET_FOLDER = settings.drive_state_bucket_folder
 SERVICE_ACCOUNT_BUCKET_NAME = settings.service_account_bucket_name

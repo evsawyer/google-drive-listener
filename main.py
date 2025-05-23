@@ -301,6 +301,6 @@ async def process_all_existing_files():
         logger.error(f"Error processing existing files at startup: {e}")
         logger.exception("Full traceback:")
 
-if __name__ == "__main__":
-    port = settings.port
-    uvicorn.run(app, host="0.0.0.0", port=port)
+# if __name__ == "__main__":
+#     port = settings.port
+#     uvicorn.run(app, host="0.0.0.0", port=port)
