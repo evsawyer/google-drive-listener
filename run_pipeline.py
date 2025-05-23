@@ -18,7 +18,7 @@ from llama_index.core.indices import VectorStoreIndex
 from llama_index_cloud_sql_pg import PostgresEngine, PostgresDocumentStore
 from llama_index.vector_stores.pinecone import PineconeVectorStore
 from pinecone import Pinecone
-
+from config import settings
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -130,12 +130,12 @@ async def setup_pipeline():
     # Set up PostgreSQL connection
     logger.info("Connecting to PostgreSQL...")
     engine = await PostgresEngine.afrom_instance(
-        project_id=os.getenv('PROJECT_ID'),
-        region=os.getenv('DB_REGION'),
-        instance=os.getenv('DB_INSTANCE'),
-        database=os.getenv('DB_NAME'),
-        user=os.getenv('DB_USER'),
-        password=os.environ.get("POSTGRES_PASSWORD"),
+        project_id=settings.project_id,
+        region=settings.db_region,
+        instance=settings.db_instance,
+        database=settings.db_name,
+        user=settings.db_user,
+        password=settings.postgres_password,
         ip_type="public",
     )
     
@@ -149,11 +149,11 @@ async def setup_pipeline():
     
     # Set up Pinecone
     logger.info("Connecting to Pinecone...")
-    pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-    index_name = os.getenv("PINECONE_INDEX_NAME")
+    pc = Pinecone(api_key=settings.pinecone_api_key)
+    index_name = settings.pinecone_index_name
     
     # Create vector store
-    namespace = os.getenv("PINECONE_NAMESPACE")
+    namespace = settings.pinecone_namespace
     logger.info(f"Creating Pinecone vector store with index: {index_name}, namespace: {namespace}")
     vector_store = PineconeVectorStore(pc.Index(index_name), namespace=namespace)
     
