@@ -85,6 +85,11 @@ app = FastAPI(lifespan=lifespan)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# hoepfully prevents app shutdown when no requersts are coming through
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
+
 # Configuration from environment variables
 
 SCOPES = ['https://www.googleapis.com/auth/drive']
