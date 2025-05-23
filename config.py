@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     
     # Database Configuration
     postgres_password: str = os.getenv("POSTGRES_PASSWORD")
+    project_id: str = 'knowledge-base-458316"'
     db_region: str = 'us-central1'
     db_instance: str = 'llamaindex-docstore'
     db_name: str = 'docstore'
