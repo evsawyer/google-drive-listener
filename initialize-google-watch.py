@@ -8,7 +8,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from google.cloud import storage
 from google.auth.transport import requests as google_auth_requests
-
+from config import settings
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -17,20 +17,22 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 # Get configuration from environment variables
-FOLDER_ID = os.getenv("FOLDER_ID")
+FOLDER_ID = settings.folder_id
+DRIVE_ID = settings.drive_id
 # WEBHOOK_URL = os.getenv("WEBHOOK_URL")
-WEBHOOK_URL = "https://scout-listener-104817932138.europe-west1.run.app/drive-notifications"
-BUCKET_NAME = os.getenv("BUCKET_NAME")  # For drive state
-SERVICE_ACCOUNT_BUCKET_NAME = os.getenv("SERVICE_ACCOUNT_BUCKET_NAME")  # For service account key
-SERVICE_ACCOUNT_KEY = os.getenv("SERVICE_ACCOUNT_KEY")  # For service account key
+WEBHOOK_URL = settings.webhook_url
+DRIVE_STATE_BUCKET_NAME = settings.drive_state_bucket_name
+BUCKET_FOLDER = settings.drive_state_bucket_folder
+SERVICE_ACCOUNT_BUCKET_NAME = settings.service_account_bucket_name
+SERVICE_ACCOUNT_KEY = settings.service_account_key
 
 
 def store_channel_info(channel_info):
     """Store channel information in Google Cloud Storage."""
     try:
         client = storage.Client()
-        bucket = client.bucket(BUCKET_NAME)  # Use BUCKET_NAME for drive state
-        blob = bucket.blob('drive_state.json')
+        bucket = client.bucket(DRIVE_STATE_BUCKET_NAME)  # Use DRIVE_STATE_BUCKET_NAME for drive state
+        blob = bucket.blob(f'{BUCKET_FOLDER}/drive_state.json')
         blob.upload_from_string(json.dumps(channel_info, indent=2))
         # Log the last 7 characters of the channel ID
         channel_id = channel_info.get('channelId', '')
@@ -70,7 +72,7 @@ def setup_drive_notifications():
         includeItemsFromAllDrives=True,
         supportsAllDrives=True,
         corpora="drive",
-        driveId=os.getenv('DRIVE_ID')
+        driveId=DRIVE_ID
     ).execute()
     
     current_files = folder_files_response.get('files', [])
@@ -95,10 +97,12 @@ def setup_drive_notifications():
     # Return channel info with the lastKnownFiles included
     return {
         'channelId': response['id'],
+        'webhookUrl': WEBHOOK_URL,
         'resourceId': response['resourceId'],
         'expiration': response.get('expiration'),
         'startPageToken': start_page_token,
         'folderID': FOLDER_ID,
+        'driveId': DRIVE_ID,
         'lastKnownFiles': current_files  # Add the initial file list
     }
 
@@ -111,8 +115,8 @@ if __name__ == "__main__":
             raise ValueError("FOLDER_ID environment variable not set in .env file")
         if not WEBHOOK_URL:
             raise ValueError("WEBHOOK_URL environment variable not set in .env file")
-        if not BUCKET_NAME:
-            raise ValueError("BUCKET_NAME environment variable not set in .env file")
+        if not DRIVE_STATE_BUCKET_NAME:
+            raise ValueError("DRIVE_STATE_BUCKET_NAME environment variable not set in .env file")
         if not SERVICE_ACCOUNT_BUCKET_NAME:
             raise ValueError("SERVICE_ACCOUNT_BUCKET_NAME environment variable not set in .env file")
             

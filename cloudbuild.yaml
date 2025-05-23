@@ -29,20 +29,12 @@ steps:
         --labels=managed-by=gcp-cloud-build-deploy-cloud-run,commit-sha=$COMMIT_SHA,gcb-build-id=$BUILD_ID,gcb-trigger-id=$_TRIGGER_ID
       - '--region=$_DEPLOY_REGION'
       - '--quiet'
-      - '--update-env-vars=PINECONE_INDEX_NAME=${_PINECONE_INDEX_NAME}'
       - '--update-env-vars=PINECONE_NAMESPACE=${_PINECONE_NAMESPACE}'
-      - '--update-env-vars=PROJECT_ID=${_PROJECT_ID}'
-      - '--update-env-vars=BUCKET_NAME=${_BUCKET_NAME}'
-      - '--update-env-vars=DB_INSTANCE=${_DB_INSTANCE}'
-      - '--update-env-vars=DB_NAME=${_DB_NAME}'
-      - '--update-env-vars=DB_REGION=${_DB_REGION}'
-      - '--update-env-vars=CREDENTIALS_BUCKET_NAME=${_CREDENTIALS_BUCKET_NAME}'
-      - '--update-env-vars=SERVICE_ACCOUNT_BUCKET_NAME=${_SERVICE_ACCOUNT_BUCKET_NAME}'
-      - '--update-env-vars=DB_USER=${_DB_USER}'
+      - '--update-env-vars=DRIVE_STATE_BUCKET_FOLDER=${_DRIVE_STATE_BUCKET_FOLDER}'
       - >-
         --set-secrets=FOLDER_ID=projects/104817932138/secrets/${_FOLDER_ID}:latest
       - >-
-        --set-secrets=DRIVE_ID=projects/104817932138/secrets/DRIVE_ID:latest
+        --set-secrets=DRIVE_ID=projects/104817932138/secrets/${_DRIVE_ID}:latest
       - >-
         --set-secrets=LLAMA_CLOUD_API_KEY=projects/104817932138/secrets/LLAMA_CLOUD_API_KEY:latest
       - >-
@@ -51,8 +43,6 @@ steps:
         --set-secrets=PINECONE_API_KEY=projects/104817932138/secrets/PINECONE_API_KEY:latest
       - >-
         --set-secrets=POSTGRES_PASSWORD=projects/104817932138/secrets/POSTGRES_PASSWORD:latest
-      - >-
-        --set-secrets=SERVICE_ACCOUNT_KEY=projects/104817932138/secrets/SERVICE_ACCOUNT_KEY:latest
     id: Deploy
     entrypoint: gcloud
 images:

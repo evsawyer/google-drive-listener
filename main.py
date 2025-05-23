@@ -5,7 +5,7 @@ from flask import Flask, request, jsonify
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from dotenv import load_dotenv
-
+from config import settings
 # unfortunately this is deprecated for now.
 # from llama_parse_google_drive_reader import LlamaParseGoogleDriveReader
 from llama_index.readers.google import GoogleDriveReader
@@ -24,40 +24,6 @@ from contextlib import asynccontextmanager
 
 # Load environment variables
 load_dotenv()
-
-class Settings(BaseSettings):
-    # Google Drive related
-    folder_id: str = os.getenv("FOLDER_ID")
-    drive_id: str = os.getenv("DRIVE_ID")
-    
-    # Service Account and Storage
-    service_account_bucket_name: str = os.getenv("SERVICE_ACCOUNT_BUCKET_NAME")
-    service_account_key: str = os.getenv("SERVICE_ACCOUNT_KEY")
-    bucket_name: str = os.getenv("BUCKET_NAME")
-    credentials_bucket_name: str = os.getenv("CREDENTIALS_BUCKET_NAME")
-    
-    # API Keys
-    pinecone_api_key: str = os.getenv("PINECONE_API_KEY")
-    openai_api_key: str = os.getenv("OPENAI_API_KEY")
-    llama_cloud_api_key: str = os.getenv("LLAMA_CLOUD_API_KEY")
-    
-    # Database Configuration
-    postgres_password: str = os.getenv("POSTGRES_PASSWORD")
-    project_id: str = os.getenv("PROJECT_ID")
-    db_region: str = os.getenv("DB_REGION")
-    db_instance: str = os.getenv("DB_INSTANCE")
-    db_name: str = os.getenv("DB_NAME")
-    db_user: str = os.getenv("DB_USER")
-    
-    # Pinecone Configuration
-    pinecone_index_name: str = os.getenv("PINECONE_INDEX_NAME")
-    pinecone_namespace: str = os.getenv("PINECONE_NAMESPACE")
-
-    class Config:
-        case_sensitive = False
-
-# Initialize settings
-settings = Settings()
 
 client = storage.Client()
 bucket = client.bucket(settings.service_account_bucket_name)

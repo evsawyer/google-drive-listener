@@ -14,6 +14,7 @@ COPY main.py .
 COPY drive_state.py .
 COPY llama_parse_google_drive_reader.py .
 COPY run_pipeline.py .
+COPY config.py .
 
 # Set the PORT environment variable to 8080
 ENV PORT=8080
