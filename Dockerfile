@@ -12,7 +12,8 @@ RUN uv sync --locked
 # Copy only the necessary application files
 COPY main.py .
 COPY drive_state.py .
-COPY llama_parse_google_drive_reader.py .
+# COPY llama_parse_google_drive_reader.py .
+COPY llama_parse_reader.py .
 COPY run_pipeline.py .
 COPY config.py .
 
