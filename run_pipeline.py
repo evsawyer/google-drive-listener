@@ -17,6 +17,8 @@ from llama_index.core.ingestion import IngestionPipeline, DocstoreStrategy
 from llama_index.core.indices import VectorStoreIndex
 from llama_index_cloud_sql_pg import PostgresEngine, PostgresDocumentStore
 from llama_index.vector_stores.pinecone import PineconeVectorStore
+import marvin
+
 from pinecone import Pinecone
 from config import settings
 # Set up logging
@@ -31,84 +33,84 @@ load_dotenv()
 # marvin.settings.openai.chat.completions.model = "gpt-4o"
 
 # Define a model for what you want to extract from descriptions
-# class DescriptionMetadata(BaseModel):
-#     source: str = Field(..., description="Origin of the document (e.g., website, internal upload)")
-#     user_id: str = Field(..., description="IVC email address")
-#     client: str = Field(..., description="Client this document is for")
-#     title: str = Field(..., description="Descriptive title of the document")
-#     tags: list[str] = Field(..., description="Tags associated with the document")
+class DescriptionMetadata(BaseModel):
+    source: str = Field(..., description="Origin of the document (e.g., website, internal upload)")
+    user_id: str = Field(..., description="IVC email address")
+    client: str = Field(..., description="Client this document is for")
+    title: str = Field(..., description="Descriptive title of the document")
+    tags: list[str] = Field(..., description="Tags associated with the document")
 
-# class DescriptionMetadataExtractor(BaseExtractor):
-#     # Define as a class field with Field annotation
-#     marvin_model: Type[BaseModel] = Field(
-#         description="The target pydantic model to extract from descriptions"
-#     )
+class DescriptionMetadataExtractor(BaseExtractor):
+    # Define as a class field with Field annotation
+    marvin_model: Type[BaseModel] = Field(
+        description="The target pydantic model to extract from descriptions"
+    )
     
-#     """Metadata extractor for Google Drive description fields using Marvin.
+    """Metadata extractor for Google Drive description fields using Marvin.
     
-#     This extractor processes the 'description' field that was added by the 
-#     EnhancedGoogleDriveReader and extracts structured metadata using Marvin.
+    This extractor processes the 'description' field that was added by the 
+    EnhancedGoogleDriveReader and extracts structured metadata using Marvin.
     
-#     Args:
-#         marvin_model: The target pydantic model to extract from descriptions.
-#     """
+    Args:
+        marvin_model: The target pydantic model to extract from descriptions.
+    """
     
-#     def __init__(
-#         self,
-#         marvin_model: Type[BaseModel],
-#         **kwargs: Any,
-#     ) -> None:
-#         """Initialize with the marvin model."""
-#         # Pass marvin_model to parent constructor
-#         super().__init__(marvin_model=marvin_model, **kwargs)
+    def __init__(
+        self,
+        marvin_model: Type[BaseModel],
+        **kwargs: Any,
+    ) -> None:
+        """Initialize with the marvin model."""
+        # Pass marvin_model to parent constructor
+        super().__init__(marvin_model=marvin_model, **kwargs)
     
-#     @classmethod
-#     def class_name(cls) -> str:
-#         return "DescriptionMetadataExtractor"
+    @classmethod
+    def class_name(cls) -> str:
+        return "DescriptionMetadataExtractor"
     
-#     async def aextract(self, nodes: Sequence[BaseNode]) -> List[Dict]:
-#         from marvin import cast_async
+    async def aextract(self, nodes: Sequence[BaseNode]) -> List[Dict]:
+        from marvin import cast_async
         
-#         metadata_list: List[Dict] = []
+        metadata_list: List[Dict] = []
         
-#         nodes_queue = get_tqdm_iterable(
-#             nodes, self.show_progress, "Extracting description metadata"
-#         )
+        nodes_queue = get_tqdm_iterable(
+            nodes, self.show_progress, "Extracting description metadata"
+        )
         
-#         for node in nodes_queue:
-#             # Always initialize with an empty dictionary
-#             node_metadata = {}
+        for node in nodes_queue:
+            # Always initialize with an empty dictionary
+            node_metadata = {}
             
-#             try:
-#                 # Check if description exists in node metadata
-#                 if hasattr(node, "metadata") and "description" in node.metadata and node.metadata["description"]:
-#                     # Get the description text
-#                     description_text = node.metadata["description"]
+            try:
+                # Check if description exists in node metadata
+                if hasattr(node, "metadata") and "description" in node.metadata and node.metadata["description"]:
+                    # Get the description text
+                    description_text = node.metadata["description"]
                     
-#                     # Extract structured data using Marvin
-#                     extracted = await cast_async(description_text, target=self.marvin_model)
-#                     extracted_dict = extracted.model_dump()
+                    # Extract structured data using Marvin
+                    extracted = await cast_async(description_text, target=self.marvin_model)
+                    extracted_dict = extracted.model_dump()
                     
-#                     # Add each field directly to node_metadata
-#                     for key, value in extracted_dict.items():
-#                         # Handle the 'tags' field which is a list
-#                         if key == 'tags' and isinstance(value, list):
-#                             # Convert list to comma-separated string for Pinecone
-#                             if value:  # Only join if list is not empty
-#                                 node_metadata[key] = ", ".join(value)
-#                             else:
-#                                 node_metadata[key] = ""  # Empty string for empty list
-#                         else:
-#                             # Add other fields directly to metadata
-#                             node_metadata[key] = value
-#             except Exception as e:
-#                 logger.error(f"Error extracting metadata from description: {e}")
-#                 # Important: Keep node_metadata as empty dict, don't set to None
+                    # Add each field directly to node_metadata
+                    for key, value in extracted_dict.items():
+                        # Handle the 'tags' field which is a list
+                        if key == 'tags' and isinstance(value, list):
+                            # Convert list to comma-separated string for Pinecone
+                            if value:  # Only join if list is not empty
+                                node_metadata[key] = ", ".join(value)
+                            else:
+                                node_metadata[key] = ""  # Empty string for empty list
+                        else:
+                            # Add other fields directly to metadata
+                            node_metadata[key] = value
+            except Exception as e:
+                logger.error(f"Error extracting metadata from description: {e}")
+                # Important: Keep node_metadata as empty dict, don't set to None
             
-#             # Always append a dictionary to metadata_list
-#             metadata_list.append(node_metadata)
+            # Always append a dictionary to metadata_list
+            metadata_list.append(node_metadata)
         
-#         return metadata_list
+        return metadata_list
 
 async def setup_pipeline():
     """Set up the LlamaIndex ingestion pipeline with PostgreSQL and Pinecone."""
@@ -153,16 +155,16 @@ async def setup_pipeline():
     )
 
 # deprecated. only works when using the LlamaParseGoogleDriveReader
-    # description_extractor = DescriptionMetadataExtractor(
-    #     marvin_model=DescriptionMetadata
-    # )
+    description_extractor = DescriptionMetadataExtractor(
+        marvin_model=DescriptionMetadata
+    )
     
     # Create ingestion pipeline
     logger.info("Creating ingestion pipeline...")
     pipeline = IngestionPipeline(
         transformations=[
             node_parser,
-            # description_extractor
+            description_extractor
         ],
         docstore=doc_store,
         vector_store=vector_store,

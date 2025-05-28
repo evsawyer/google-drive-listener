@@ -7,7 +7,7 @@ from googleapiclient.discovery import build
 from dotenv import load_dotenv
 from config import settings
 # unfortunately this is deprecated for now.
-# from llama_parse_google_drive_reader import LlamaParseGoogleDriveReader
+from batch_llama_parse_google_drive_reader import BatchLlamaParseGoogleDriveReader
 from llama_parse_reader import LlamaParseReader
 from llama_index.readers.google import GoogleDriveReader
 
@@ -206,11 +206,15 @@ def process_files_in_folder(changed_file_ids, current_files):
             # LlamaParse supports various types; check its documentation for a full list.
         }
 
-
         # Initialize the loader
-        loader = GoogleDriveReader(service_account_key=service_account_key, 
-                                    is_cloud=True,
-                                    file_extractor=file_extractor_config)
+        loader = BatchLlamaParseGoogleDriveReader(
+                                                    service_account_key=service_account_key, 
+                                                    is_cloud=True,
+                                                    llama_parse_result_type="markdown",
+                                                    llama_parse_verbose=True,
+                                                    split_by_page=False,
+
+        )
         
         # Load the documents with the list of file IDs
         logger.info(f"Calling loader.load_data with file_ids={file_ids_to_process}")
