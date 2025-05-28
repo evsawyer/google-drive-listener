@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from config import settings
 # unfortunately this is deprecated for now.
 from batch_llama_parse_google_drive_reader import BatchLlamaParseGoogleDriveReader
-from llama_parse_reader import LlamaParseReader
+# from llama_parse_reader import LlamaParseReader
 from llama_index.readers.google import GoogleDriveReader
 
 from run_pipeline import run_pipeline_for_documents
@@ -182,29 +182,29 @@ def process_files_in_folder(changed_file_ids, current_files):
         if not settings.llama_cloud_api_key:
             logger.error("LLAMA_CLOUD_API_KEY is not set...")
             return None
-        try:
-            llama_parse_reader_for_drive = LlamaParseReader(
-                result_type="markdown", # "text" or "markdown"
-                verbose=True,
-                split_by_page=False,
-                # You can add other LlamaParse specific arguments here, e.g., split_by_page=True
-            )
-        except ValueError as e:
-            print(f"Error initializing LlamaParseReader: {e}")
-            print("Please ensure LLAMA_CLOUD_API_KEY is set or pass api_key.")
-            exit()
+        # try:
+        #     llama_parse_reader_for_drive = LlamaParseReader(
+        #         result_type="markdown", # "text" or "markdown"
+        #         verbose=True,
+        #         split_by_page=False,
+        #         # You can add other LlamaParse specific arguments here, e.g., split_by_page=True
+        #     )
+        # except ValueError as e:
+        #     print(f"Error initializing LlamaParseReader: {e}")
+        #     print("Please ensure LLAMA_CLOUD_API_KEY is set or pass api_key.")
+        #     exit()
 
-        file_extractor_config = {
-            ".pdf": llama_parse_reader_for_drive,
-            ".docx": llama_parse_reader_for_drive,
-            ".pptx": llama_parse_reader_for_drive,
-            ".md": llama_parse_reader_for_drive,
-            ".txt": llama_parse_reader_for_drive,
-            ".html": llama_parse_reader_for_drive,
-            ".epub": llama_parse_reader_for_drive,
-            # Add any other file extensions you want LlamaParse to process.
-            # LlamaParse supports various types; check its documentation for a full list.
-        }
+        # file_extractor_config = {
+        #     ".pdf": llama_parse_reader_for_drive,
+        #     ".docx": llama_parse_reader_for_drive,
+        #     ".pptx": llama_parse_reader_for_drive,
+        #     ".md": llama_parse_reader_for_drive,
+        #     ".txt": llama_parse_reader_for_drive,
+        #     ".html": llama_parse_reader_for_drive,
+        #     ".epub": llama_parse_reader_for_drive,
+        #     # Add any other file extensions you want LlamaParse to process.
+        #     # LlamaParse supports various types; check its documentation for a full list.
+        # }
 
         # Initialize the loader
         loader = BatchLlamaParseGoogleDriveReader(
