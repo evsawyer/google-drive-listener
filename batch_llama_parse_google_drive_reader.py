@@ -24,6 +24,7 @@ class BatchLlamaParseGoogleDriveReader(GoogleDriveReader):
         llama_cloud_api_key: Optional[str] = None,
         llama_parse_result_type: str = "markdown",
         llama_parse_verbose: bool = True,
+        service_account_key: dict = None, # Now required for GDrive authentication
         # You can add other LlamaParse specific constructor arguments here
         # e.g., split_by_page: bool = False, use_vendor_multimodal_models: bool = False etc.
         # Pass them as kwargs if not explicitly listed.
@@ -33,12 +34,12 @@ class BatchLlamaParseGoogleDriveReader(GoogleDriveReader):
         file_ids: Optional[List[str]] = None,
         query_string: Optional[str] = None,
         is_cloud: Optional[bool] = False,
-        credentials_path: str = "credentials.json",
-        token_path: str = "token.json",
-        service_account_key_path: str = "service_account_key.json",
-        client_config: Optional[dict] = None,
-        authorized_user_info: Optional[dict] = None,
-        service_account_key: Optional[dict] = None, # Crucial for GDrive authentication
+        # credentials_path: str = "credentials.json",
+        # token_path: str = "token.json",
+        # service_account_key_path: str = "service_account_key.json",
+        # client_config: Optional[dict] = None,
+        # authorized_user_info: Optional[dict] = None,
+  
         **llama_parse_kwargs: Any, # Catch-all for other LlamaParse constructor args
     ) -> None:
         """
@@ -139,7 +140,6 @@ class BatchLlamaParseGoogleDriveReader(GoogleDriveReader):
                 # Base query for items within the folder_id
                 query = f"'{folder_id}' in parents and trashed=false"
 
-
                 # Add mimeType filter to query
                 if mime_types:
                     mime_type_conditions = [f"mimeType='{mt}'" for mt in mime_types]
@@ -154,7 +154,6 @@ class BatchLlamaParseGoogleDriveReader(GoogleDriveReader):
                      # If query_string is provided, it should apply to files.
                      # Folders should still be traversed.
                     query += f" and (mimeType='{folder_mime_type}' or ({query_string}))"
-
 
                 items = []
                 page_token = None # Initialize page_token to None for the first call

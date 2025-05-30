@@ -16,7 +16,9 @@ class Settings(BaseSettings):
     # Service Account and Storage
     service_account_bucket_name: str = 'service-account-0'
     service_account_key: str = 'knowledge-base-458316-966fdfc500f9.json'
+
     drive_state_bucket_name: str = 'drive-state'
+    # the bucket folder should be the drive name - drive id?
     drive_state_bucket_folder: str = os.getenv("DRIVE_STATE_BUCKET_FOLDER")
     credentials_bucket_name: str = 'drive-reader-credentials'
     

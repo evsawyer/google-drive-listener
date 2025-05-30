@@ -1,42 +1,24 @@
 import os
-import json
 import logging
-from flask import Flask, request, jsonify
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
 from dotenv import load_dotenv
 from config import settings
-# unfortunately this is deprecated for now.
-from batch_llama_parse_google_drive_reader import BatchLlamaParseGoogleDriveReader
-# from llama_parse_reader import LlamaParseReader
-from llama_index.readers.google import GoogleDriveReader
-
 from run_pipeline import run_pipeline_for_documents
 from drive_state import get_drive_state, update_drive_state
-import sys
-from google.cloud import storage
-import aiohttp
-import asyncio
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 import uvicorn
-from pydantic_settings import BaseSettings
 from contextlib import asynccontextmanager
-
+from drive_functions import get_watched_files, process_files
+from cloud_storage_functions import get_drive_service
+import json
 # Load environment variables
 load_dotenv()
-
-client = storage.Client()
-bucket = client.bucket(settings.service_account_bucket_name)
-blob = bucket.blob(settings.service_account_key)
-service_account_key = json.loads(blob.download_as_string())
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle manager for the FastAPI app"""
     logger.info("Starting up FastAPI application...")
     try:
-        await process_all_existing_files()
         yield
     except Exception as e:
         logger.error(f"Error during startup: {e}")
@@ -53,23 +35,6 @@ logger = logging.getLogger(__name__)
 async def health_check():
     return {"status": "ok"}
 
-# Configuration from environment variables
-
-SCOPES = ['https://www.googleapis.com/auth/drive']
-
-def get_service_account_info():
-    """Get service account info from Google Cloud Storage."""
-    client = storage.Client()
-    bucket = client.bucket(settings.service_account_bucket_name)
-    blob = bucket.blob(settings.service_account_key)
-    return json.loads(blob.download_as_string())
-
-def get_drive_service():
-    """Create and return an authorized Drive API service instance."""
-    service_account_info = get_service_account_info()
-    credentials = service_account.Credentials.from_service_account_info(
-        service_account_info, scopes=SCOPES)
-    return build('drive', 'v3', credentials=credentials)
 
 @app.post("/drive-notifications")
 async def handle_drive_notification(
@@ -86,6 +51,7 @@ async def handle_drive_notification(
         stored_info = get_drive_state()
         start_page_token = stored_info.get('startPageToken')
         stored_channel_id = stored_info.get('channelId')
+        drive_id = stored_info.get('driveId')
         
         if not x_goog_channel_id or x_goog_channel_id != stored_channel_id:
             logger.error(f"Received notification from unauthorized channel: {x_goog_channel_id}")
@@ -119,27 +85,21 @@ async def handle_drive_notification(
         
         # If we have any changes, check what files are currently in the folder
         if changes:
-            logger.info(f"Checking files in folder {settings.folder_id}...")
-            
-            # Query for current files in the folder
-            folder_files_response = drive_service.files().list(
-                q=f"'{settings.folder_id}' in parents and trashed = false",
-                fields="files(id, name, mimeType, modifiedTime)",
-                includeItemsFromAllDrives=True,
-                supportsAllDrives=True,
-                corpora="drive", 
-                driveId=settings.drive_id
-            ).execute()
-            
-            current_files = folder_files_response.get('files', [])
-            logger.info(f"Found {len(current_files)} files currently in the folder")
+            # Get initial list of files in the folder
+            logger.info(f"Getting initial list of watched files in drive {settings.drive_id}")
+            watched_files = get_watched_files(drive_id=settings.drive_id)
+            logger.info(f"Found {len(watched_files)} watched files in drive")
             
             # Log all files in the folder
-            for file in current_files:
-                logger.info(f"File in folder: {file.get('name')} (ID: {file.get('id')})")
+            for file in watched_files:
+                logger.info(f"Watched file in drive {settings.drive_id}: {file.get('name')} (ID: {file.get('id')})")
             
+            file_ids_to_process = [file.get('id') for file in watched_files if file.get('id') in changed_file_ids]
+            file_names_to_process = [file.get('name') for file in watched_files if file.get('id') in changed_file_ids]
+            for file_id, file_name in zip(file_ids_to_process, file_names_to_process):
+                logger.info(f"Preparing to process file: {file_name} (ID: {file_id})")
             # Process all changed files together with GoogleDriveReader
-            docs = process_files_in_folder(changed_file_ids, current_files)
+            docs = process_files(file_ids_to_process)
         
             if docs:
                 logger.info(f"Processing {len(docs)} documents through pipeline...")
@@ -150,103 +110,14 @@ async def handle_drive_notification(
                     logger.error("Failed to process documents through the pipeline")
         
             # Update the stored state with current files
-            stored_info['lastKnownFiles'] = current_files
-            update_drive_state(stored_info['startPageToken'], current_files)
+            stored_info['lastKnownFiles'] = watched_files
+            update_drive_state(stored_info['startPageToken'], watched_files)
         
         return {"status": "OK"}
         
     except Exception as e:
         logger.error(f"Error handling notification: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-def process_files_in_folder(changed_file_ids, current_files):
-    """Process all changed files in the folder using GoogleDriveReader."""
-    try:
-        # Filter to only get file IDs that exist in the folder
-        folder_file_ids = [file.get('id') for file in current_files]
-        file_ids_to_process = [file_id for file_id in changed_file_ids if file_id in folder_file_ids]
-        
-        if not file_ids_to_process:
-            logger.info("No files to process with GoogleDriveReader")
-            return None
-        
-        # Log what we're about to process
-        logger.info(f"Processing {len(file_ids_to_process)} files with GoogleDriveReader")
-        for file_id in file_ids_to_process:
-            for file in current_files:
-                if file.get('id') == file_id:
-                    logger.info(f"- {file.get('name')} (ID: {file_id})")
-                    break
-        
-        # Check if LLAMA_CLOUD_API_KEY is set
-        if not settings.llama_cloud_api_key:
-            logger.error("LLAMA_CLOUD_API_KEY is not set...")
-            return None
-        # try:
-        #     llama_parse_reader_for_drive = LlamaParseReader(
-        #         result_type="markdown", # "text" or "markdown"
-        #         verbose=True,
-        #         split_by_page=False,
-        #         # You can add other LlamaParse specific arguments here, e.g., split_by_page=True
-        #     )
-        # except ValueError as e:
-        #     print(f"Error initializing LlamaParseReader: {e}")
-        #     print("Please ensure LLAMA_CLOUD_API_KEY is set or pass api_key.")
-        #     exit()
-
-        # file_extractor_config = {
-        #     ".pdf": llama_parse_reader_for_drive,
-        #     ".docx": llama_parse_reader_for_drive,
-        #     ".pptx": llama_parse_reader_for_drive,
-        #     ".md": llama_parse_reader_for_drive,
-        #     ".txt": llama_parse_reader_for_drive,
-        #     ".html": llama_parse_reader_for_drive,
-        #     ".epub": llama_parse_reader_for_drive,
-        #     # Add any other file extensions you want LlamaParse to process.
-        #     # LlamaParse supports various types; check its documentation for a full list.
-        # }
-
-        # Initialize the loader
-        loader = BatchLlamaParseGoogleDriveReader(
-                                                    service_account_key=service_account_key, 
-                                                    is_cloud=True,
-                                                    llama_parse_result_type="markdown",
-                                                    llama_parse_verbose=True,
-                                                    split_by_page=False,
-
-        )
-        
-        # Load the documents with the list of file IDs
-        logger.info(f"Calling loader.load_data with file_ids={file_ids_to_process}")
-
-        docs = loader.load_data(file_ids=file_ids_to_process)
-        
-        if not docs:
-            logger.warning("No documents returned from GoogleDriveReader")
-            return None
-        
-        # Log successful loading
-        logger.info(f"Successfully loaded {len(docs)} documents")
-        
-        return docs
-        
-    except Exception as e:
-        logger.error(f"Error processing files with GoogleDriveReader: {e}")
-        logger.exception("Full traceback:")
-        return None
-
-def process_removed_file(file):
-    """Process a file that was removed from the folder."""
-    file_id = file.get('id')
-    file_name = file.get('name')
-    
-    logger.info(f"Processing removed file: {file_name} (ID: {file_id})")
-    
-    # Implement your custom removal logic here
-    # For example, you might want to:
-    # - Remove the file from your database
-    # - Send a notification that a file was removed
-    # - Update any related records
 
 @app.route('/stop-notifications', methods=['POST'])
 def stop_notifications():
@@ -255,7 +126,7 @@ def stop_notifications():
         # Get the stored channel info
         channel_info_path = 'channel_info.json'
         if not os.path.exists(channel_info_path):
-            return jsonify({
+            return JSONResponse({
                 'error': 'Channel info file not found'
             }), 404
             
@@ -266,7 +137,7 @@ def stop_notifications():
         resource_id = stored_info.get('resourceId')
         
         if not channel_id or not resource_id:
-            return jsonify({
+            return JSONResponse({
                 'error': 'Missing channelId or resourceId in stored info'
             }), 400
         
@@ -284,36 +155,39 @@ def stop_notifications():
         # Rename the channel info file to indicate it's stopped
         os.rename(channel_info_path, f"{channel_info_path}.stopped")
         
-        return jsonify({
+        return JSONResponse({
             'success': True,
             'message': f"Stopped notifications for channel {channel_id}"
         })
     except Exception as e:
         logger.error(f"Error stopping notifications: {e}")
-        return jsonify({
+        return JSONResponse({
             'error': str(e)
         }), 500
 
-async def process_all_existing_files():
+@app.post("/process-all-watched-files")
+async def process_all_watched_files():
     """Process all files stored in the drive state at startup."""
+    x_goog_channel_id: str = Header(..., alias="X-Goog-Channel-ID")
+    stored_info = get_drive_state()
+    stored_channel_id = stored_info.get('channelId')
+
+    if x_goog_channel_id != stored_channel_id:
+        logger.error(f"Unauthorized access attempt with channel ID: {x_goog_channel_id}")
+        raise HTTPException(status_code=403, detail="Unauthorized channel ID")
+
     try:
         logger.info("Starting initial processing of all existing files...")
         
         # Get the stored state from Cloud Storage
-        stored_info = get_drive_state()
-        current_files = stored_info.get('lastKnownFiles', [])
-        
-        if not current_files:
+        watched_files = get_watched_files(drive_id=settings.drive_id)
+        if not watched_files:
             logger.info("No existing files found in drive state")
             return
-            
-        logger.info(f"Found {len(current_files)} files to process")
-        
+        logger.info(f"Found {len(watched_files)} files to process")
         # Extract all file IDs
-        file_ids = [file.get('id') for file in current_files]
-        
-        docs = process_files_in_folder(file_ids, current_files)
-        
+        file_ids = [file.get('id') for file in watched_files]
+        docs = process_files(file_ids)
         if docs:
             logger.info(f"Processing {len(docs)} documents through pipeline...")
             pipeline_success = await run_pipeline_for_documents(docs)
@@ -327,7 +201,3 @@ async def process_all_existing_files():
     except Exception as e:
         logger.error(f"Error processing existing files at startup: {e}")
         logger.exception("Full traceback:")
-
-# if __name__ == "__main__":
-#     port = settings.port
-#     uvicorn.run(app, host="0.0.0.0", port=port)

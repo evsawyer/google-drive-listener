@@ -4,7 +4,8 @@ from dotenv import load_dotenv
 load_dotenv()
 import os
 from config import settings
-def update_drive_state(new_token, files):
+
+def update_drive_state(new_token):
     client = storage.Client()
     bucket = client.bucket(settings.drive_state_bucket_name)
     blob = bucket.blob(settings.drive_state_bucket_folder + '/drive_state.json')
@@ -18,7 +19,6 @@ def update_drive_state(new_token, files):
     # Update only the specific fields
     existing_state.update({
         'startPageToken': new_token,
-        'lastKnownFiles': files
     })
     
     # Upload the merged state back
