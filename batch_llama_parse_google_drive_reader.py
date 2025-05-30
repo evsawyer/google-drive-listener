@@ -34,11 +34,11 @@ class BatchLlamaParseGoogleDriveReader(GoogleDriveReader):
         file_ids: Optional[List[str]] = None,
         query_string: Optional[str] = None,
         is_cloud: Optional[bool] = False,
-        # credentials_path: str = "credentials.json",
-        # token_path: str = "token.json",
-        # service_account_key_path: str = "service_account_key.json",
-        # client_config: Optional[dict] = None,
-        # authorized_user_info: Optional[dict] = None,
+        credentials_path: str = "credentials.json",
+        token_path: str = "token.json",
+        service_account_key_path: str = "service_account_key.json",
+        client_config: Optional[dict] = None,
+        authorized_user_info: Optional[dict] = None,
   
         **llama_parse_kwargs: Any, # Catch-all for other LlamaParse constructor args
     ) -> None:
@@ -71,11 +71,11 @@ class BatchLlamaParseGoogleDriveReader(GoogleDriveReader):
             file_ids=file_ids,
             query_string=query_string,
             is_cloud=is_cloud,
-            # credentials_path=credentials_path,
-            # token_path=token_path,
-            # service_account_key_path=service_account_key_path,
-            # client_config=client_config,
-            # authorized_user_info=authorized_user_info,
+            credentials_path=credentials_path,
+            token_path=token_path,
+            service_account_key_path=service_account_key_path,
+            client_config=client_config,
+            authorized_user_info=authorized_user_info,
             service_account_key=service_account_key,
             file_extractor=None, # This reader does not use the file_extractor mechanism
         )
