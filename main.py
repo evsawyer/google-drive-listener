@@ -83,17 +83,9 @@ async def handle_drive_notification(
         new_start_page_token = response.get('newStartPageToken')
         stored_info['startPageToken'] = new_start_page_token
         
-        # If we have any changes, check what files are currently in the folder
+        # If we have any changes, check what files are currently in the watched folder
         if changes:
-            # Get initial list of files in the folder
-            logger.info(f"Getting initial list of watched files in drive {settings.drive_id}")
             watched_files = get_watched_files(drive_id=settings.drive_id)
-            logger.info(f"Found {len(watched_files)} watched files in drive")
-            
-            # Log all files in the folder
-            for file in watched_files:
-                logger.info(f"Watched file in drive {settings.drive_id}: {file.get('name')} (ID: {file.get('id')})")
-            
             file_ids_to_process = [file.get('id') for file in watched_files if file.get('id') in changed_file_ids]
             file_names_to_process = [file.get('name') for file in watched_files if file.get('id') in changed_file_ids]
             for file_id, file_name in zip(file_ids_to_process, file_names_to_process):
@@ -110,8 +102,7 @@ async def handle_drive_notification(
                     logger.error("Failed to process documents through the pipeline")
         
             # Update the stored state with current files
-            stored_info['lastKnownFiles'] = watched_files
-            update_drive_state(stored_info['startPageToken'], watched_files)
+            update_drive_state(stored_info['startPageToken'])
         
         return {"status": "OK"}
         

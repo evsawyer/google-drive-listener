@@ -71,11 +71,11 @@ class BatchLlamaParseGoogleDriveReader(GoogleDriveReader):
             file_ids=file_ids,
             query_string=query_string,
             is_cloud=is_cloud,
-            credentials_path=credentials_path,
-            token_path=token_path,
-            service_account_key_path=service_account_key_path,
-            client_config=client_config,
-            authorized_user_info=authorized_user_info,
+            # credentials_path=credentials_path,
+            # token_path=token_path,
+            # service_account_key_path=service_account_key_path,
+            # client_config=client_config,
+            # authorized_user_info=authorized_user_info,
             service_account_key=service_account_key,
             file_extractor=None, # This reader does not use the file_extractor mechanism
         )
@@ -262,7 +262,7 @@ class BatchLlamaParseGoogleDriveReader(GoogleDriveReader):
             # If neither folder_id nor file_id is provided, and self.query_string is,
             # we might need a top-level query. This part depends on GoogleDriveReader's intent.
             # For now, assuming folder_id or file_ids are the primary drivers as per GoogleDriveReader.load_data
-            elif self.query_string and not folder_id and not file_ids : # if only query string is provided to the reader instance
+            elif self.query_string and not folder_id and not self.file_ids : # if only query string is provided to the reader instance
                  logger.info(f"Performing a global query with: {self.query_string}")
                  query = self.query_string
                  # This section would be similar to folder listing but without 'parents' in query
