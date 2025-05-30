@@ -155,14 +155,17 @@ def stop_notifications():
         return JSONResponse({
             'error': str(e)
         }), 500
-
+    
+from typing import Annotated
 @app.post("/process-all-watched-files")
-async def process_all_watched_files():
+async def process_all_watched_files(
+    x_goog_channel_id: Annotated[str, Header(alias="X-Goog-Channel-ID")]
+):
     """Process all files stored in the drive state at startup."""
-    x_goog_channel_id: str = Header(..., alias="X-Goog-Channel-ID")
     stored_info = get_drive_state()
     stored_channel_id = stored_info.get('channelId')
-
+    logger.info(f"Stored channel ID: {stored_channel_id}")
+    logger.info(f"X-Goog-Channel-ID: {x_goog_channel_id}")
     if x_goog_channel_id != stored_channel_id:
         logger.error(f"Unauthorized access attempt with channel ID: {x_goog_channel_id}")
         raise HTTPException(status_code=403, detail="Unauthorized channel ID")
