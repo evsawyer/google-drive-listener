@@ -26,6 +26,7 @@ load_dotenv()
 DRIVE_ID = settings.drive_id
 # WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 WEBHOOK_URL = 'https://scout-listener-104817932138.europe-west1.run.app/drive-notifications'
+WEBHOOK_URL = settings.webhook_url
 DRIVE_STATE_BUCKET_NAME = settings.drive_state_bucket_name
 BUCKET_FOLDER = settings.drive_state_bucket_folder
 SERVICE_ACCOUNT_BUCKET_NAME = settings.service_account_bucket_name
@@ -57,7 +58,7 @@ def setup_drive_notifications():
     channel = {
         'id': channel_id,
         'type': 'web_hook',
-        'address': WEBHOOK_URL,
+        'address': WEBHOOK_URL + '/drive-notifications',
     }
     
     response = drive_service.changes().watch(
