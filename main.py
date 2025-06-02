@@ -191,6 +191,7 @@ async def refresh_drive_channel(
         raise HTTPException(status_code=403, detail="Unauthorized refresh key")
     
     logging.info("stopping notifications on previous channel")
+    channel_info = get_drive_state()
     channel_id = channel_info.get('channelId')
     resource_id = channel_info.get('resourceId')
     stop_notifications(channel_id, resource_id)
