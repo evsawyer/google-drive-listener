@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     drive_state_bucket_name: str = 'drive-state'
     # the bucket folder should be the drive name - drive id?
     drive_state_bucket_folder: str = os.getenv("DRIVE_STATE_BUCKET_FOLDER")
-    credentials_bucket_name: str = 'drive-reader-credentials'
+    # credentials_bucket_name: str = 'drive-reader-credentials'
     
     # API Keys
     pinecone_api_key: str = os.getenv("PINECONE_API_KEY")
@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     pinecone_api_key: str = os.getenv("PINECONE_API_KEY")
     openai_api_key: str = os.getenv("OPENAI_API_KEY")
     llama_cloud_api_key: str = os.getenv("LLAMA_CLOUD_API_KEY")
+
+    # secret key to access refresh drive channel route
+    refresh_key: str = os.getenv("REFRESH_KEY")
 
     class Config:
         case_sensitive = False

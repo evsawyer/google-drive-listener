@@ -20,7 +20,7 @@ load_dotenv()
 FOLDER_ID = settings.folder_id
 DRIVE_ID = settings.drive_id
 # WEBHOOK_URL = os.getenv("WEBHOOK_URL")
-WEBHOOK_URL = 'https://drive-reader-104817932138.europe-west1.run.app/drive-notifications'
+WEBHOOK_URL = 'https://scout-listener-104817932138.europe-west1.run.app/drive-notifications'
 DRIVE_STATE_BUCKET_NAME = settings.drive_state_bucket_name
 BUCKET_FOLDER = settings.drive_state_bucket_folder
 SERVICE_ACCOUNT_BUCKET_NAME = settings.service_account_bucket_name
@@ -75,8 +75,8 @@ def setup_drive_notifications():
         driveId=DRIVE_ID
     ).execute()
     
-    current_files = folder_files_response.get('files', [])
-    logger.info(f"Found {len(current_files)} files in folder")
+    watched_files = folder_files_response.get('files', [])
+    logger.info(f"Found {len(watched_files)} files in folder")
     
     # Rest of your existing setup code...
     start_page_token_response = drive_service.changes().getStartPageToken().execute()
@@ -103,7 +103,7 @@ def setup_drive_notifications():
         'startPageToken': start_page_token,
         'folderID': FOLDER_ID,
         'driveId': DRIVE_ID,
-        'lastKnownFiles': current_files  # Add the initial file list
+        'lastKnownFiles': watched_files  # Add the initial file list
     }
 
 if __name__ == "__main__":

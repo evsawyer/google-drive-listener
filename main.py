@@ -11,6 +11,8 @@ from contextlib import asynccontextmanager
 from drive_functions import get_watched_files, process_files
 from cloud_storage_functions import get_drive_service
 import json
+from refresh_drive_channel import setup_drive_notifications, store_channel_info
+
 # Load environment variables
 load_dotenv()
 
@@ -111,27 +113,13 @@ async def handle_drive_notification(
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.route('/stop-notifications', methods=['POST'])
-def stop_notifications():
+def stop_notifications(channel_id: str, resource_id: str):
     """Stop receiving notifications for a channel."""
     try:
-        # Get the stored channel info
-        channel_info_path = 'channel_info.json'
-        if not os.path.exists(channel_info_path):
-            return JSONResponse({
-                'error': 'Channel info file not found'
-            }), 404
-            
-        with open(channel_info_path, 'r') as f:
-            stored_info = json.load(f)
-            
-        channel_id = stored_info.get('channelId')
-        resource_id = stored_info.get('resourceId')
-        
         if not channel_id or not resource_id:
             return JSONResponse({
                 'error': 'Missing channelId or resourceId in stored info'
             }), 400
-        
         # Get the Drive API service
         drive_service = get_drive_service()
         
@@ -142,9 +130,6 @@ def stop_notifications():
         }).execute()
         
         logger.info(f"Stopped notifications for channel {channel_id}")
-        
-        # Rename the channel info file to indicate it's stopped
-        os.rename(channel_info_path, f"{channel_info_path}.stopped")
         
         return JSONResponse({
             'success': True,
@@ -195,3 +180,36 @@ async def process_all_watched_files(
     except Exception as e:
         logger.error(f"Error processing existing files at startup: {e}")
         logger.exception("Full traceback:")
+
+@app.post("/refresh-drive-channel")
+async def refresh_drive_channel(
+    x_refresh_key: Annotated[str, Header(alias="X-Refresh-Key")]):
+
+    """Refresh the drive channel."""
+    if x_refresh_key != settings.refresh_key:
+        logger.error(f"Unauthorized access attempt with refresh key: {x_refresh_key}")
+        raise HTTPException(status_code=403, detail="Unauthorized refresh key")
+    
+    logging.info("stopping notifications on previous channel")
+    channel_id = channel_info.get('channelId')
+    resource_id = channel_info.get('resourceId')
+    stop_notifications(channel_id, resource_id)
+
+    try:
+        logger.info("Initializing Google Drive notification channel...")
+        # Verify required environment variables are set
+        if not settings.webhook_url:
+            raise ValueError("WEBHOOK_URL environment variable not set in .env file")
+        if not settings.drive_state_bucket_name:
+            raise ValueError("DRIVE_STATE_BUCKET_NAME environment variable not set in .env file")
+        if not settings.service_account_bucket_name:
+            raise ValueError("SERVICE_ACCOUNT_BUCKET_NAME environment variable not set in .env file")
+            
+        channel_info = setup_drive_notifications()
+        logger.info(f"Successfully set up notifications!")
+        # Store channel info in Cloud Storage
+        store_channel_info(channel_info)
+        logger.info("\nIMPORTANT: Channel information has been saved to Cloud Storage!")
+        
+    except Exception as e:
+        logger.error(f"Error setting up notifications: {e}")
