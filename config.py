@@ -8,6 +8,9 @@ from pydantic_settings import BaseSettings
 load_dotenv()
 
 class Settings(BaseSettings):
+
+    # Webhook URL
+    webhook_url: str = os.getenv("WEBHOOK_URL")
     
     # Google Drive related
     folder_id: str = os.getenv("FOLDER_ID")

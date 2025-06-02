@@ -12,7 +12,7 @@ from drive_functions import get_watched_files, process_files
 from cloud_storage_functions import get_drive_service
 import json
 from refresh_drive_channel import setup_drive_notifications, store_channel_info
-
+import time
 # Load environment variables
 load_dotenv()
 
@@ -194,8 +194,17 @@ async def refresh_drive_channel(
     channel_info = get_drive_state()
     channel_id = channel_info.get('channelId')
     resource_id = channel_info.get('resourceId')
-    stop_notifications(channel_id, resource_id)
-
+    expiration = float(channel_info.get('expiration'))
+    if expiration > time.time():
+        logger.info("Channel is still valid, stopping notifications")
+        try:
+            stop_notifications(channel_id, resource_id)
+        except Exception as e:
+            logger.error(f"Failed to stop notifications: {e}")
+            logger.exception("Full traceback:")
+            raise HTTPException(status_code=500, detail="Failed to stop previous notifications")
+    else:
+        logger.info("Channel has expired, no need to stop notifications")
     try:
         logger.info("Initializing Google Drive notification channel...")
         # Verify required environment variables are set
