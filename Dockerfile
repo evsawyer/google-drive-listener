@@ -18,6 +18,7 @@ COPY cloud_storage_functions.py .
 COPY drive_functions.py .
 COPY run_pipeline.py .
 COPY config.py .
+COPY refresh_drive_channel.py .
 
 # Set the PORT environment variable to 8080
 ENV PORT=8080
