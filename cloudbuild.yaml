@@ -43,6 +43,8 @@ steps:
         --set-secrets=PINECONE_API_KEY=projects/104817932138/secrets/PINECONE_API_KEY:latest
       - >-
         --set-secrets=POSTGRES_PASSWORD=projects/104817932138/secrets/POSTGRES_PASSWORD:latest
+      - >-
+        --set-secrets=REFRESH_KEY=projects/104817932138/secrets/REFRESH_KEY:latest
     id: Deploy
     entrypoint: gcloud
 images:
