@@ -63,7 +63,8 @@ def setup_drive_notifications():
     
     response = drive_service.changes().watch(
         pageToken=start_page_token,
-        driveId=DRIVE_ID,  # Specify the shared drive you want to watch
+        # only specify this if you want exactly one drive
+        # driveId=DRIVE_ID,  # Specify the shared drive you want to watch
         includeItemsFromAllDrives=True,  # Required when watching shared drives
         supportsAllDrives=True,  # Required when watching shared drives
         spaces='drive',  # Specify we're watching Drive space
