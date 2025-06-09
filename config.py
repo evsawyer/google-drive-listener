@@ -11,10 +11,7 @@ class Settings(BaseSettings):
 
     # Webhook URL
     webhook_url: str = os.getenv("WEBHOOK_URL")
-    
-    # Google Drive related
-    folder_id: str = os.getenv("FOLDER_ID")
-    drive_id: str = os.getenv("DRIVE_ID")
+
     
     # Service Account and Storage
     service_account_bucket_name: str = 'service-account-0'
