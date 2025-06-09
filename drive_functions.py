@@ -9,6 +9,27 @@ from cloud_storage_functions import get_drive_service, get_service_account_info
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+def get_shared_files() -> List[Dict]:
+
+    try:
+        drive_service = get_drive_service()
+        results = drive_service.files().list(
+        q="mimeType != 'application/vnd.google-apps.folder'",
+        pageSize=100,
+        fields="files(name, id, mimeType)",
+        includeItemsFromAllDrives=True,
+        supportsAllDrives=True
+        ).execute()
+
+        files = results.get('files', [])
+        logger.info(f"Found {len(files)} shared files")
+        for file in files:
+            logger.info(f"Shared file: {file.get('name')} (ID: {file.get('id')})")
+        return files
+    except Exception as e:
+        logger.error(f"Error getting shared files: {e}")
+        raise
+
 def get_watched_files(
     drive_id: str = None
 ) -> List[Dict]:

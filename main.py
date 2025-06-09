@@ -3,12 +3,12 @@ import logging
 from dotenv import load_dotenv
 from config import settings
 from run_pipeline import run_pipeline_for_documents
-from drive_state import get_drive_state, update_drive_state
+from channel_state import get_channel_state, update_channel_state
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 import uvicorn
 from contextlib import asynccontextmanager
-from drive_functions import get_watched_files, process_files
+from drive_functions import get_watched_files, process_files, get_shared_files
 from cloud_storage_functions import get_drive_service
 import json
 from refresh_drive_channel import setup_drive_notifications, store_channel_info
@@ -50,7 +50,7 @@ async def handle_drive_notification(
     logger.info(f"Received notification #{x_goog_message_number} for channel {x_goog_channel_id}")
     
     try:
-        stored_info = get_drive_state()
+        stored_info = get_channel_state()
         start_page_token = stored_info.get('startPageToken')
         stored_channel_id = stored_info.get('channelId')
         drive_id = stored_info.get('driveId')
@@ -87,13 +87,18 @@ async def handle_drive_notification(
         
         # If we have any changes, check what files are currently in the watched folder
         if changes:
-            watched_files = get_watched_files(drive_id=settings.drive_id)
-            file_ids_to_process = [file.get('id') for file in watched_files if file.get('id') in changed_file_ids]
-            file_names_to_process = [file.get('name') for file in watched_files if file.get('id') in changed_file_ids]
-            for file_id, file_name in zip(file_ids_to_process, file_names_to_process):
-                logger.info(f"Preparing to process file: {file_name} (ID: {file_id})")
+
+            #  this is MOOT because any notficiation will be of a file that needs to be processed
+            # i.e. we only get notifications for filew sand folders our S.A. is allowed to see
+
+
+            # watched_files = get_watched_files(drive_id=settings.drive_id)
+            # file_ids_to_process = [file.get('id') for file in watched_files if file.get('id') in changed_file_ids]
+            # file_names_to_process = [file.get('name') for file in watched_files if file.get('id') in changed_file_ids]
+            # for file_id, file_name in zip(file_ids_to_process, file_names_to_process):
+            #     logger.info(f"Preparing to process file: {file_name} (ID: {file_id})")
             # Process all changed files together with GoogleDriveReader
-            docs = process_files(file_ids_to_process)
+            docs = process_files(changed_file_ids)
         
             if docs:
                 logger.info(f"Processing {len(docs)} documents through pipeline...")
@@ -104,7 +109,7 @@ async def handle_drive_notification(
                     logger.error("Failed to process documents through the pipeline")
         
             # Update the stored state with current files
-            update_drive_state(stored_info['startPageToken'])
+            update_channel_state(stored_info['startPageToken'])
         
         return {"status": "OK"}
         
@@ -142,12 +147,12 @@ def stop_notifications(channel_id: str, resource_id: str):
         }), 500
     
 from typing import Annotated
-@app.post("/process-all-watched-files")
-async def process_all_watched_files(
+@app.post("/process-all-shared-files")
+async def process_all_shared_files(
     x_goog_channel_id: Annotated[str, Header(alias="X-Goog-Channel-ID")]
 ):
     """Process all files stored in the drive state at startup."""
-    stored_info = get_drive_state()
+    stored_info = get_channel_state()
     stored_channel_id = stored_info.get('channelId')
     logger.info(f"Stored channel ID: {stored_channel_id}")
     logger.info(f"X-Goog-Channel-ID: {x_goog_channel_id}")
@@ -159,13 +164,13 @@ async def process_all_watched_files(
         logger.info("Starting initial processing of all existing files...")
         
         # Get the stored state from Cloud Storage
-        watched_files = get_watched_files(drive_id=settings.drive_id)
-        if not watched_files:
+        # watched_files = get_watched_files(drive_id=settings.drive_id)
+        shared_files = get_shared_files()
+        if not shared_files:
             logger.info("No existing files found in drive state")
             return
-        logger.info(f"Found {len(watched_files)} files to process")
         # Extract all file IDs
-        file_ids = [file.get('id') for file in watched_files]
+        file_ids = [file.get('id') for file in shared_files]
         docs = process_files(file_ids)
         if docs:
             logger.info(f"Processing {len(docs)} documents through pipeline...")
@@ -191,7 +196,7 @@ async def refresh_drive_channel(
         raise HTTPException(status_code=403, detail="Unauthorized refresh key")
     
     logging.info("stopping notifications on previous channel")
-    channel_info = get_drive_state()
+    channel_info = get_channel_state()
     channel_id = channel_info.get('channelId')
     resource_id = channel_info.get('resourceId')
     expiration = float(channel_info.get('expiration'))
@@ -210,8 +215,8 @@ async def refresh_drive_channel(
         # Verify required environment variables are set
         if not settings.webhook_url:
             raise ValueError("WEBHOOK_URL environment variable not set in .env file")
-        if not settings.drive_state_bucket_name:
-            raise ValueError("DRIVE_STATE_BUCKET_NAME environment variable not set in .env file")
+        if not settings.channel_state_bucket_name:
+            raise ValueError("CHANNEL_STATE_BUCKET_NAME environment variable not set in .env file")
         if not settings.service_account_bucket_name:
             raise ValueError("SERVICE_ACCOUNT_BUCKET_NAME environment variable not set in .env file")
             

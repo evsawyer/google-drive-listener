@@ -30,7 +30,7 @@ steps:
       - '--region=$_DEPLOY_REGION'
       - '--quiet'
       - '--update-env-vars=PINECONE_NAMESPACE=${_PINECONE_NAMESPACE}'
-      - '--update-env-vars=DRIVE_STATE_BUCKET_FOLDER=${_DRIVE_STATE_BUCKET_FOLDER}'
+      - '--update-env-vars=CHANNEL_STATE_BUCKET_FOLDER=${_CHANNEL_STATE_BUCKET_FOLDER}'
       - >-
         --set-secrets=FOLDER_ID=projects/104817932138/secrets/${_FOLDER_ID}:latest
       - >-

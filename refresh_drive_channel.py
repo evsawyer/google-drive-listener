@@ -23,17 +23,16 @@ load_dotenv()
 
 # Get configuration from environment variables
 # FOLDER_ID = settings.folder_id
-DRIVE_ID = settings.drive_id
 # WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 WEBHOOK_URL = 'https://scout-listener-104817932138.europe-west1.run.app/drive-notifications'
 WEBHOOK_URL = settings.webhook_url
-DRIVE_STATE_BUCKET_NAME = settings.drive_state_bucket_name
-BUCKET_FOLDER = settings.drive_state_bucket_folder
+CHANNEL_STATE_BUCKET_NAME = settings.channel_state_bucket_name
+BUCKET_FOLDER = settings.channel_state_bucket_folder
 SERVICE_ACCOUNT_BUCKET_NAME = settings.service_account_bucket_name
 
 def setup_drive_notifications():
     """Set up Google Drive API notifications for changes using the changes API."""
-    logger.info(f"Setting up Drive notifications for Drive: {DRIVE_ID}")
+    logger.info(f"Setting up Drive notifications for Service Account")
     logger.info(f"Using webhook URL: {WEBHOOK_URL}")
     
     # Set up credentials and drive service
@@ -54,7 +53,7 @@ def setup_drive_notifications():
     start_page_token_response = drive_service.changes().getStartPageToken().execute()
     start_page_token = start_page_token_response.get('startPageToken')
     
-    channel_id = f"drive-webhook-{DRIVE_ID}-{uuid.uuid4()}"
+    channel_id = f"drive-webhook-{uuid.uuid4()}"
     channel = {
         'id': channel_id,
         'type': 'web_hook',
@@ -77,14 +76,13 @@ def setup_drive_notifications():
         'resourceId': response['resourceId'],
         'expiration': response.get('expiration'),
         'startPageToken': start_page_token,
-        'driveId': DRIVE_ID,
     }
 
 def store_channel_info(channel_info):
     """Store channel information in Google Cloud Storage."""
     try:
         client = storage.Client()
-        bucket = client.bucket(DRIVE_STATE_BUCKET_NAME)  # Use DRIVE_STATE_BUCKET_NAME for drive state
+        bucket = client.bucket(CHANNEL_STATE_BUCKET_NAME)  # Use CHANNEL_STATE_BUCKET_NAME for drive state
         folder_blob = bucket.blob(BUCKET_FOLDER)
         logger.info(f"Checking existence of folder: {BUCKET_FOLDER}")
         if not folder_blob.exists():
@@ -92,7 +90,7 @@ def store_channel_info(channel_info):
             folder_blob.upload_from_string('')  # Create the folder if it doesn't exist
         else:
             logger.info(f"Folder {BUCKET_FOLDER} already exists.")
-        blob = bucket.blob(f'{BUCKET_FOLDER}/drive_state.json')
+        blob = bucket.blob(f'{BUCKET_FOLDER}/channel_state.json')
         blob.upload_from_string(json.dumps(channel_info, indent=2))
         # Log the last 7 characters of the channel ID
         channel_id = channel_info.get('channelId', '')
@@ -109,8 +107,8 @@ if __name__ == "__main__":
         # Verify required environment variables are set
         if not WEBHOOK_URL:
             raise ValueError("WEBHOOK_URL environment variable not set in .env file")
-        if not DRIVE_STATE_BUCKET_NAME:
-            raise ValueError("DRIVE_STATE_BUCKET_NAME environment variable not set in .env file")
+        if not CHANNEL_STATE_BUCKET_NAME:
+            raise ValueError("CHANNEL_STATE_BUCKET_NAME environment variable not set in .env file")
         if not SERVICE_ACCOUNT_BUCKET_NAME:
             raise ValueError("SERVICE_ACCOUNT_BUCKET_NAME environment variable not set in .env file")
             
