@@ -83,7 +83,6 @@ def store_channel_info(channel_info):
     try:
         client = storage.Client()
         bucket = client.bucket(CHANNEL_STATE_BUCKET_NAME)  # Use CHANNEL_STATE_BUCKET_NAME for drive state
-        folder_blob = bucket.blob(BUCKET_FOLDER)
         logger.info(f"Writing channel info to: {BUCKET_FOLDER}")
         blob = bucket.blob(f'{BUCKET_FOLDER}/channel_state.json')
         blob.upload_from_string(json.dumps(channel_info, indent=2))
