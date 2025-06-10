@@ -84,11 +84,7 @@ def store_channel_info(channel_info):
         client = storage.Client()
         bucket = client.bucket(CHANNEL_STATE_BUCKET_NAME)  # Use CHANNEL_STATE_BUCKET_NAME for drive state
         folder_blob = bucket.blob(BUCKET_FOLDER)
-        logger.info(f"Checking existence of folder: {BUCKET_FOLDER}")
-        if not folder_blob.exists():
-            logger.info(f"Folder {BUCKET_FOLDER} not found. Creating it.")
-        else:
-            logger.info(f"Folder {BUCKET_FOLDER} already exists.")
+        logger.info(f"Writing channel info to: {BUCKET_FOLDER}")
         blob = bucket.blob(f'{BUCKET_FOLDER}/channel_state.json')
         blob.upload_from_string(json.dumps(channel_info, indent=2))
         # Log the last 7 characters of the channel ID
