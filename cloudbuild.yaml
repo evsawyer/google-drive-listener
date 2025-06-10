@@ -34,8 +34,6 @@ steps:
       - >-
         --set-secrets=FOLDER_ID=projects/104817932138/secrets/${_FOLDER_ID}:latest
       - >-
-        --set-secrets=DRIVE_ID=projects/104817932138/secrets/${_DRIVE_ID}:latest
-      - >-
         --set-secrets=LLAMA_CLOUD_API_KEY=projects/104817932138/secrets/LLAMA_CLOUD_API_KEY:latest
       - >-
         --set-secrets=OPENAI_API_KEY=projects/104817932138/secrets/OPENAI_API_KEY:latest

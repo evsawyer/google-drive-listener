@@ -3,16 +3,18 @@ from typing import List, Dict
 from googleapiclient.errors import HttpError
 from config import settings
 from batch_llama_parse_google_drive_reader import BatchLlamaParseGoogleDriveReader
-from cloud_storage_functions import get_drive_service, get_service_account_info
-
+from service_functions import get_drive_service, get_service_account_info
+from label_functions import get_file_labels
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def get_shared_files() -> List[Dict]:
+drive_service = get_drive_service()
 
+def get_shared_files() -> List[Dict]:
     try:
-        drive_service = get_drive_service()
+        # isnt necessary since I initalize at the start of this file
+        # drive_service = get_drive_service()
         results = drive_service.files().list(
         q="mimeType != 'application/vnd.google-apps.folder'",
         pageSize=100,
@@ -47,7 +49,8 @@ def get_watched_files(
         HttpError: If there's an error accessing the Google Drive API
     """
     try:
-        drive_service = get_drive_service()
+        # isnt necessary since I initalize at the start of this file
+        # drive_service = get_drive_service()
         # Get all folders with '--watched' in their name
         logger.info(f"Getting list of watched folders in drive {drive_id}")
         folder_files_response = drive_service.files().list(

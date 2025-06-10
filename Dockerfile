@@ -14,11 +14,12 @@ COPY main.py .
 COPY channel_state.py .
 # COPY llama_parse_google_drive_reader.py .
 COPY batch_llama_parse_google_drive_reader.py .
-COPY cloud_storage_functions.py .
+COPY service_functions.py .
 COPY drive_functions.py .
 COPY run_pipeline.py .
 COPY config.py .
 COPY refresh_drive_channel.py .
+COPY label_functions.py .
 
 # Set the PORT environment variable to 8080
 ENV PORT=8080

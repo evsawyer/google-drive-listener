@@ -12,7 +12,7 @@ from googleapiclient.discovery import build
 from google.cloud import storage
 from google.auth.transport import requests as google_auth_requests
 from config import settings
-from cloud_storage_functions import get_service_account_info
+from service_functions import get_service_account_info
 from drive_functions import get_watched_files
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -87,7 +87,6 @@ def store_channel_info(channel_info):
         logger.info(f"Checking existence of folder: {BUCKET_FOLDER}")
         if not folder_blob.exists():
             logger.info(f"Folder {BUCKET_FOLDER} not found. Creating it.")
-            folder_blob.upload_from_string('')  # Create the folder if it doesn't exist
         else:
             logger.info(f"Folder {BUCKET_FOLDER} already exists.")
         blob = bucket.blob(f'{BUCKET_FOLDER}/channel_state.json')

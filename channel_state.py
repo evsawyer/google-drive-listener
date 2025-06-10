@@ -4,10 +4,25 @@ from dotenv import load_dotenv
 load_dotenv()
 import os
 from config import settings
+import logging
+logger = logging.getLogger(__name__)
+
+def ensure_bucket_exists(client, bucket_name):
+    """Create bucket if it doesn't exist"""
+    try:
+        bucket = client.bucket(bucket_name)
+        if not bucket.exists():
+            bucket.create()
+        return bucket
+    except Exception as e:
+        # Create the bucket
+        bucket = client.create_bucket(bucket_name)
+        return bucket
+
 
 def update_channel_state(new_token):
     client = storage.Client()
-    bucket = client.bucket(settings.channel_state_bucket_name)
+    bucket = ensure_bucket_exists(client, settings.channel_state_bucket_name)
     blob = bucket.blob(settings.channel_state_bucket_folder + '/channel_state.json')
     
     # First get existing state
@@ -28,4 +43,8 @@ def get_channel_state():
     client = storage.Client()
     bucket = client.bucket(settings.channel_state_bucket_name)
     blob = bucket.blob(settings.channel_state_bucket_folder + '/channel_state.json')
-    return json.loads(blob.download_as_string())
+    try:
+        return json.loads(blob.download_as_string())
+    except Exception as e:
+        logger.warning(f"Channel state not found in bucket '{settings.channel_state_bucket_name}' and folder '{settings.channel_state_bucket_folder}': {e}")
+        return "No channel found"

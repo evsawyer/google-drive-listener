@@ -12,7 +12,6 @@ class Settings(BaseSettings):
     # Webhook URL
     webhook_url: str = os.getenv("WEBHOOK_URL")
 
-    
     # Service Account and Storage
     service_account_bucket_name: str = 'service-account-0'
     service_account_key: str = 'knowledge-base-458316-966fdfc500f9.json'
@@ -46,6 +45,9 @@ class Settings(BaseSettings):
 
     # secret key to access refresh drive channel route
     refresh_key: str = os.getenv("REFRESH_KEY")
+
+    # label id
+    label_id: str = 'ON9CAVs48dKc7CnxNxcs4mmk9D9JMQ74AOORNNEbbFcb'
 
     class Config:
         case_sensitive = False

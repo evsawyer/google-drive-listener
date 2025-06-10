@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 import uvicorn
 from contextlib import asynccontextmanager
 from drive_functions import get_watched_files, process_files, get_shared_files
-from cloud_storage_functions import get_drive_service
+from service_functions import get_drive_service
 import json
 from refresh_drive_channel import setup_drive_notifications, store_channel_info
 import time
@@ -53,7 +53,6 @@ async def handle_drive_notification(
         stored_info = get_channel_state()
         start_page_token = stored_info.get('startPageToken')
         stored_channel_id = stored_info.get('channelId')
-        drive_id = stored_info.get('driveId')
         
         if not x_goog_channel_id or x_goog_channel_id != stored_channel_id:
             logger.error(f"Received notification from unauthorized channel: {x_goog_channel_id}")
@@ -87,6 +86,8 @@ async def handle_drive_notification(
         
         # If we have any changes, check what files are currently in the watched folder
         if changes:
+            # filter out any files that are removed
+            changes = [change for change in changes if not change.get('removed')]
 
             #  this is MOOT because any notficiation will be of a file that needs to be processed
             # i.e. we only get notifications for filew sand folders our S.A. is allowed to see
@@ -197,19 +198,26 @@ async def refresh_drive_channel(
     
     logging.info("stopping notifications on previous channel")
     channel_info = get_channel_state()
-    channel_id = channel_info.get('channelId')
-    resource_id = channel_info.get('resourceId')
-    expiration = float(channel_info.get('expiration'))
-    if expiration > time.time():
-        logger.info("Channel is still valid, stopping notifications")
-        try:
-            stop_notifications(channel_id, resource_id)
-        except Exception as e:
-            logger.error(f"Failed to stop notifications: {e}")
-            logger.exception("Full traceback:")
-            raise HTTPException(status_code=500, detail="Failed to stop previous notifications")
+    if channel_info == "No channel found":
+        logger.info("No channel found, setting up new channel")
+        pass
     else:
-        logger.info("Channel has expired, no need to stop notifications")
+        logger.info("Channel found, stopping notifications")
+        channel_id = channel_info.get('channelId')
+        resource_id = channel_info.get('resourceId')
+        expiration = float(channel_info.get('expiration'))
+        if expiration > time.time():
+            logger.info("Channel is still valid, stopping notifications")
+            try:
+                stop_notifications(channel_id, resource_id)
+            except Exception as e:
+                logger.error(f"Failed to stop notifications: {e}")
+                logger.exception("Full traceback:")
+                raise HTTPException(status_code=500, detail="Failed to stop previous notifications")
+        else:
+            logger.info("Channel has expired, no need to stop notifications")
+
+            
     try:
         logger.info("Initializing Google Drive notification channel...")
         # Verify required environment variables are set

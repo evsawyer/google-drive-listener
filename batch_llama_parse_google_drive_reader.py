@@ -7,7 +7,8 @@ from typing import Any, Dict, List, Optional, Union
 from llama_index.core.schema import Document
 from llama_index.readers.google import GoogleDriveReader # The base class
 from llama_parse import LlamaParse # The parser we want to use in batch
-
+from label_functions import get_file_labels
+from config import settings
 import logging
 logger = logging.getLogger(__name__)
 
@@ -244,8 +245,6 @@ class BatchLlamaParseGoogleDriveReader(GoogleDriveReader):
                 # For _get_relative_path, the root_folder_id is typically self.folder_id
                 # If self.folder_id is None, _get_relative_path defaults to just file name
                 file_actual_path = self._get_relative_path(service, file_id, self.folder_id)
-                
-                description = file.get("description", None)
 
                 fileids_meta.append(
                     (
@@ -256,7 +255,7 @@ class BatchLlamaParseGoogleDriveReader(GoogleDriveReader):
                         file["createdTime"],
                         file["modifiedTime"],
                         self._get_drive_link(file["id"]),
-                        description,  # Add description as 8th element
+                        file.get("description", None),  # Add description as 8th element
                     )
                 )
             # If neither folder_id nor file_id is provided, and self.query_string is,
@@ -324,7 +323,7 @@ class BatchLlamaParseGoogleDriveReader(GoogleDriveReader):
                             if len(item_meta) > 7 and item_meta[7] is not None:
                                 description_value = item_meta[7]
                             
-                            temp_path_to_metadata_map[final_temp_filepath_str] = {
+                            metadata= {
                                 "file_id": item_meta[0],
                                 "author": item_meta[1],
                                 "file_path": item_meta[2], # Original Google Drive path
@@ -334,6 +333,10 @@ class BatchLlamaParseGoogleDriveReader(GoogleDriveReader):
                                 "drive_link": item_meta[6],
                                 "description": description_value, # Access description (8th element, index 7)
                             }
+
+                            labels = get_file_labels(file_id, settings.label_id) # Access labels (9th element, index 8)
+                            metadata.update(labels)
+                            temp_path_to_metadata_map[final_temp_filepath_str] = metadata
                             # Removed verbose logging of temp_path_to_metadata_map for brevity
                         else:
                             logger.warning(f"Failed to download file with ID: {file_id}")
