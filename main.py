@@ -64,77 +64,70 @@ async def handle_drive_notification(
         
         logger.info(f"Using page token: {start_page_token}")
         
-        # Get changes since last notification
-        response = drive_service.changes().list(
-            pageToken=start_page_token,
-            spaces='drive',
-            fields='changes(fileId, removed, time), newStartPageToken',
-            includeItemsFromAllDrives=True,
-            supportsAllDrives=True
-        ).execute()
-        
-        changes = response.get('changes', [])
-        logger.info(f"Received {len(changes)} changes since last notification")
-
-        # log how many files are removed and how many are not
-        removed_files = [change for change in changes if change.get('removed')]
-        not_removed_files = [change for change in changes if not change.get('removed')]
-        logger.info(f"Removed files: {len(removed_files)}")
-        logger.info(f"Proceeding to proceess only the not removed of which there are {len(not_removed_files)}")
-        
-        # Extract all changed file IDs
-        changed_file_ids = [file.get('fileId') for file in not_removed_files]
-        logger.info(f"Changed (and not removed) file IDs: {changed_file_ids}")
-        
-        # Before getting the new token
-        logger.info(f"Current page token before update: {stored_info.get('startPageToken')}")
-        logger.info(f"Full response from Drive API: {response}")
-
-        # Get the new token
-        new_start_page_token = response.get('newStartPageToken')
-        logger.info(f"New start page token from response: {new_start_page_token}")
-
-        if new_start_page_token is None:
-            logger.error("newStartPageToken is None! Full response data:")
-            logger.error(f"Response keys available: {response.keys()}")
-            logger.error(f"Response type: {type(response)}")
-            # Maybe there's an alternative token in the response?
-            logger.error(f"Alternative tokens in response: {[k for k in response.keys() if 'token' in k.lower()]}")
-
-        # Update the token
-        stored_info['startPageToken'] = new_start_page_token
-        logger.info(f"Updated stored_info token to: {stored_info['startPageToken']}")
-        
-        # If we have any changes, check what files are currently in the watched folder
-        if changes:
-            # filter out any files that are removed
+        try:
+            # Get changes using the token
+            response = drive_service.changes().list(
+                pageToken=start_page_token,
+                spaces='drive',
+                fields='changes(fileId, removed, time, file(mimeType))',
+                includeItemsFromAllDrives=True,
+                supportsAllDrives=True
+            ).execute()
             
+            logger.info(f"Received changes response: {response}")
 
-            #  this is MOOT because any notficiation will be of a file that needs to be processed
-            # i.e. we only get notifications for filew sand folders our S.A. is allowed to see
+            # Always get a fresh token after processing changes
+            token_response = drive_service.changes().getStartPageToken(
+                supportsAllDrives=True
+            ).execute()
+            new_start_page_token = token_response.get('startPageToken')
+            logger.info(f"Got fresh token: {new_start_page_token}")
+            
+            if new_start_page_token:
+                stored_info['startPageToken'] = new_start_page_token
+                update_channel_state(new_start_page_token)
+                logger.info(f"Updated stored token to: {new_start_page_token}")
+            else:
+                logger.error("Failed to get new token")
+                raise HTTPException(status_code=500, detail="Could not get new token")
 
+            # Filter out folder changes
+            file_changes = []
+            for change in response.get('changes', []):
+                file_id = change.get('fileId')
+                # Skip removed files
+                if change.get('removed', False):
+                    logger.info(f"Skipping removed item: {file_id}")
+                    continue
+                # Skip folders
+                if 'file' in change and change['file'].get('mimeType') == 'application/vnd.google-apps.folder':
+                    logger.info(f"Skipping folder change: {file_id}")
+                    continue
+                file_changes.append(change)
 
-            # watched_files = get_watched_files(drive_id=settings.drive_id)
-            # file_ids_to_process = [file.get('id') for file in watched_files if file.get('id') in changed_file_ids]
-            # file_names_to_process = [file.get('name') for file in watched_files if file.get('id') in changed_file_ids]
-            # for file_id, file_name in zip(file_ids_to_process, file_names_to_process):
-            #     logger.info(f"Preparing to process file: {file_name} (ID: {file_id})")
-            # Process all changed files together with GoogleDriveReader
-            docs = process_files(changed_file_ids)
-        
-            if docs:
-                logger.info(f"Processing {len(docs)} documents through pipeline...")
-                pipeline_success = await run_pipeline_for_documents(docs)
-                if pipeline_success:
-                    logger.info("Successfully processed documents")
-                else:
-                    logger.error("Failed to process documents through the pipeline")
-        
-            # Update the stored state with current files
-            update_channel_state(stored_info['startPageToken'])
-        
-        return {"status": "OK"}
-        
+            logger.info(f"Found {len(file_changes)} file changes to process")
+
+            # Extract all changed file IDs
+            changed_file_ids = [file.get('fileId') for file in file_changes]
+            logger.info(f"Changed file IDs: {changed_file_ids}")
+            
+            # Process changes if any were found
+            if changed_file_ids:
+                docs = process_files(changed_file_ids)
+                if docs:
+                    logger.info(f"Processing {len(docs)} documents through pipeline...")
+                    pipeline_success = await run_pipeline_for_documents(docs)
+                    if pipeline_success:
+                        logger.info("Successfully processed documents")
+                    else:
+                        logger.error("Failed to process documents through the pipeline")
+            
+            return {"status": "OK"}
+
+        except Exception as e:
+            logger.error(f"Error processing changes: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+            
     except Exception as e:
         logger.error(f"Error handling notification: {e}")
         raise HTTPException(status_code=500, detail=str(e))
