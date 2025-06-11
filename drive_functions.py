@@ -13,7 +13,7 @@ drive_service = get_drive_service()
 
 def get_shared_files() -> List[Dict]:
     try:
-        # isnt necessary since I initalize at the start of this file
+        # isn't necessary since I initalize at the start of this file
         # drive_service = get_drive_service()
         results = drive_service.files().list(
         q="mimeType != 'application/vnd.google-apps.folder'",

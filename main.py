@@ -75,19 +75,40 @@ async def handle_drive_notification(
         
         changes = response.get('changes', [])
         logger.info(f"Received {len(changes)} changes since last notification")
+
+        # log how many files are removed and how many are not
+        removed_files = [change for change in changes if change.get('removed')]
+        not_removed_files = [change for change in changes if not change.get('removed')]
+        logger.info(f"Removed files: {len(removed_files)}")
+        logger.info(f"Proceeding to proceess only the not removed of which there are {len(not_removed_files)}")
         
         # Extract all changed file IDs
-        changed_file_ids = [change.get('fileId') for change in changes]
-        logger.info(f"Changed file IDs: {changed_file_ids}")
+        changed_file_ids = [file.get('fileId') for file in not_removed_files]
+        logger.info(f"Changed (and not removed) file IDs: {changed_file_ids}")
         
-        # Update the page token for next time
+        # Before getting the new token
+        logger.info(f"Current page token before update: {stored_info.get('startPageToken')}")
+        logger.info(f"Full response from Drive API: {response}")
+
+        # Get the new token
         new_start_page_token = response.get('newStartPageToken')
+        logger.info(f"New start page token from response: {new_start_page_token}")
+
+        if new_start_page_token is None:
+            logger.error("newStartPageToken is None! Full response data:")
+            logger.error(f"Response keys available: {response.keys()}")
+            logger.error(f"Response type: {type(response)}")
+            # Maybe there's an alternative token in the response?
+            logger.error(f"Alternative tokens in response: {[k for k in response.keys() if 'token' in k.lower()]}")
+
+        # Update the token
         stored_info['startPageToken'] = new_start_page_token
+        logger.info(f"Updated stored_info token to: {stored_info['startPageToken']}")
         
         # If we have any changes, check what files are currently in the watched folder
         if changes:
             # filter out any files that are removed
-            changes = [change for change in changes if not change.get('removed')]
+            
 
             #  this is MOOT because any notficiation will be of a file that needs to be processed
             # i.e. we only get notifications for filew sand folders our S.A. is allowed to see
