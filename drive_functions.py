@@ -116,6 +116,8 @@ def process_files(file_ids_to_process):
         logger.info(f"Calling loader.load_data with file_ids={file_ids_to_process}")
 
         docs = loader.load_data(file_ids=file_ids_to_process)
+
+        logger.info(f"Docs: {docs}")
         
         if not docs:
             logger.warning("No documents returned from BatchLlamaParseGoogleDriveReader")

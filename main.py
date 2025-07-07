@@ -109,7 +109,8 @@ async def handle_drive_notification(
 
             # Extract all changed file IDs
             changed_file_ids = [file.get('fileId') for file in file_changes]
-            logger.info(f"Changed file IDs: {changed_file_ids}")
+            changed_file_paths = [file.get('file').get('name') for file in file_changes]
+            logger.info(f"Changed file IDs: {changed_file_ids} with paths: {changed_file_paths}")
             
             # Process changes if any were found
             if changed_file_ids:
@@ -167,13 +168,13 @@ async def process_all_shared_files(
     x_goog_channel_id: Annotated[str, Header(alias="X-Goog-Channel-ID")]
 ):
     """Process all files stored in the drive state at startup."""
-    stored_info = get_drive_state()
-    stored_channel_id = stored_info.get('channelId')
-    logger.info(f"Stored channel ID: {stored_channel_id}")
-    logger.info(f"X-Goog-Channel-ID: {x_goog_channel_id}")
-    if x_goog_channel_id != stored_channel_id:
-        logger.error(f"Unauthorized access attempt with channel ID: {x_goog_channel_id}")
-        raise HTTPException(status_code=403, detail="Unauthorized channel ID")
+    # stored_info = get_drive_state()
+    # stored_channel_id = stored_info.get('channelId')
+    # logger.info(f"Stored channel ID: {stored_channel_id}")
+    # logger.info(f"X-Goog-Channel-ID: {x_goog_channel_id}")
+    # if x_goog_channel_id != stored_channel_id:
+    #     logger.error(f"Unauthorized access attempt with channel ID: {x_goog_channel_id}")
+    #     raise HTTPException(status_code=403, detail="Unauthorized channel ID")
 
     try:
         logger.info("Starting initial processing of all existing files...")
