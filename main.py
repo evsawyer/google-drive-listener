@@ -17,10 +17,6 @@ import time
 # Load environment variables
 load_dotenv()
 
-# Pydantic model for file ID request
-class FileIdRequest(BaseModel):
-    file_id: str
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle manager for the FastAPI app"""
@@ -42,10 +38,15 @@ logger = logging.getLogger(__name__)
 async def health_check():
     return {"status": "ok"}
 
+# Pydantic model for file ID request
+class FileIdRequest(BaseModel):
+    file_id: str
+
+# Process a single file
 @app.post("/process-file")
 async def process_file(request: FileIdRequest):
     file_id = request.file_id
-    doc = process_files(file_id)
+    doc = process_files([file_id])  # Pass as a list
     if doc:
         logger.info(f"Processing {len(doc)} documents through pipeline...")
         pipeline_success = await run_pipeline_for_documents(doc)
