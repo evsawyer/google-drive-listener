@@ -311,7 +311,7 @@ class BatchLlamaParseGoogleDriveReader(GoogleDriveReader):
                 for item_meta in fileids_meta:
                     file_id = item_meta[0]
                     file_path = item_meta[2]
-                    logger.info(f"Processing file ID: {file_id} with path: {file_path}")
+                    logger.info(f"Processing {file_path}")
                     logger.debug(f"Full metadata for file: {item_meta}")
                     
                     # Base name for the temporary file, _download_file will add the extension
@@ -320,11 +320,11 @@ class BatchLlamaParseGoogleDriveReader(GoogleDriveReader):
 
                     try:
                         # Download the file
-                        logger.info(f"Attempting to download file {file_id} with path: {file_path}")
+                        logger.info(f"Attempting to download {file_path}")
                         final_temp_filepath_str = self._download_file(file_id, str(temp_file_base))
                         
                         if final_temp_filepath_str:
-                            logger.info(f"Successfully downloaded file {file_id} with path: {file_path} to {final_temp_filepath_str}")
+                            logger.info(f"Successfully downloaded {file_path} to {final_temp_filepath_str}")
                             downloaded_file_paths.append(final_temp_filepath_str)
                             
                             # Store the rich metadata against the actual path LlamaParse will see
@@ -343,18 +343,18 @@ class BatchLlamaParseGoogleDriveReader(GoogleDriveReader):
                                 "description": description_value,
                             }
                             
-                            logger.info(f"Getting labels for file {file_id} with path: {file_path}")
+                            logger.info(f"Getting labels for {file_path}")
                             labels = get_file_labels(file_id, settings.label_id)
                             logger.debug(f"Retrieved labels for file {file_id}: {labels}")
                             
                             metadata.update(labels)
                             temp_path_to_metadata_map[final_temp_filepath_str] = metadata
-                            logger.info(f"Successfully processed metadata for file {file_id} with path: {file_path}")
+                            logger.info(f"Successfully processed metadata for {file_path}")
                         else:
                             logger.error(f"Download failed for file {file_id} - _download_file returned None or empty string")
                             logger.debug(f"Metadata that failed: {item_meta}")
                     except Exception as e:
-                        logger.error(f"Error downloading file {file_id}: {str(e)}")
+                        logger.error(f"Error downloading {file_path}: {str(e)}")
                         logger.error(f"File metadata at time of failure: {item_meta}")
                         logger.exception("Full traceback:")
                         continue  # Skip this file
