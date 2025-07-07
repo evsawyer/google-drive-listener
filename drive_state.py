@@ -20,10 +20,10 @@ def ensure_bucket_exists(client, bucket_name):
         return bucket
 
 
-def update_channel_state(new_token):
+def update_drive_state(new_token):
     client = storage.Client()
-    bucket = ensure_bucket_exists(client, settings.channel_state_bucket_name)
-    blob = bucket.blob(settings.channel_state_bucket_folder + '/channel_state.json')
+    bucket = ensure_bucket_exists(client, settings.bucket_name)
+    blob = bucket.blob(settings.drive_state_folder + '/drive_state.json')
     
     # First get existing state
     try:
@@ -39,12 +39,12 @@ def update_channel_state(new_token):
     # Upload the merged state back
     blob.upload_from_string(json.dumps(existing_state))
 
-def get_channel_state():
+def get_drive_state():
     client = storage.Client()
-    bucket = client.bucket(settings.channel_state_bucket_name)
-    blob = bucket.blob(settings.channel_state_bucket_folder + '/channel_state.json')
+    bucket = client.bucket(settings.bucket_name)
+    blob = bucket.blob(settings.drive_state_folder + '/drive_state.json')
     try:
         return json.loads(blob.download_as_string())
     except Exception as e:
-        logger.warning(f"Channel state not found in bucket '{settings.channel_state_bucket_name}' and folder '{settings.channel_state_bucket_folder}': {e}")
-        return "No channel found"
+        logger.warning(f"Drive state not found in bucket '{settings.bucket_name}' and folder '{settings.drive_state_folder}': {e}")
+        return "No drive state found"

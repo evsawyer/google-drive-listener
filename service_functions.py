@@ -9,8 +9,8 @@ LABEL_SCOPES = ['https://www.googleapis.com/auth/drive.labels.readonly']
 def get_service_account_info():
     """Get service account info from Google Cloud Storage."""
     client = storage.Client()
-    bucket = client.bucket(settings.service_account_bucket_name)
-    blob = bucket.blob(settings.service_account_key)
+    bucket = client.bucket(settings.bucket_name)
+    blob = bucket.blob(settings.service_account_folder + '/' + settings.service_account_key)
     return json.loads(blob.download_as_string())
 
 def get_drive_service():

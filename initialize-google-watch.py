@@ -19,20 +19,18 @@ load_dotenv()
 # Get configuration from environment variables
 FOLDER_ID = settings.folder_id
 DRIVE_ID = settings.drive_id
-# WEBHOOK_URL = os.getenv("WEBHOOK_URL")
-WEBHOOK_URL = 'https://scout-listener-104817932138.europe-west1.run.app/drive-notifications'
-DRIVE_STATE_BUCKET_NAME = settings.drive_state_bucket_name
-BUCKET_FOLDER = settings.drive_state_bucket_folder
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+channel_state_BUCKET_NAME = settings.channel_state_bucket_name
+BUCKET_FOLDER = settings.channel_state_bucket_folder
 SERVICE_ACCOUNT_BUCKET_NAME = settings.service_account_bucket_name
 SERVICE_ACCOUNT_KEY = settings.service_account_key
-
 
 def store_channel_info(channel_info):
     """Store channel information in Google Cloud Storage."""
     try:
         client = storage.Client()
-        bucket = client.bucket(DRIVE_STATE_BUCKET_NAME)  # Use DRIVE_STATE_BUCKET_NAME for drive state
-        blob = bucket.blob(f'{BUCKET_FOLDER}/drive_state.json')
+        bucket = client.bucket(CHANNEL_STATE_BUCKET_NAME)  # Use CHANNEL_STATE_BUCKET_NAME for drive state
+        blob = bucket.blob(f'{BUCKET_FOLDER}/channel_state.json')
         blob.upload_from_string(json.dumps(channel_info, indent=2))
         # Log the last 7 characters of the channel ID
         channel_id = channel_info.get('channelId', '')
@@ -115,8 +113,8 @@ if __name__ == "__main__":
             raise ValueError("FOLDER_ID environment variable not set in .env file")
         if not WEBHOOK_URL:
             raise ValueError("WEBHOOK_URL environment variable not set in .env file")
-        if not DRIVE_STATE_BUCKET_NAME:
-            raise ValueError("DRIVE_STATE_BUCKET_NAME environment variable not set in .env file")
+        if not CHANNEL_STATE_BUCKET_NAME:
+            raise ValueError("CHANNEL_STATE_BUCKET_NAME environment variable not set in .env file")
         if not SERVICE_ACCOUNT_BUCKET_NAME:
             raise ValueError("SERVICE_ACCOUNT_BUCKET_NAME environment variable not set in .env file")
             

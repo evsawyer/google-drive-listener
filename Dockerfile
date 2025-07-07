@@ -11,7 +11,7 @@ RUN uv sync --locked
 
 # Copy only the necessary application files
 COPY main.py .
-COPY channel_state.py .
+COPY drive_state.py .
 # COPY llama_parse_google_drive_reader.py .
 COPY batch_llama_parse_google_drive_reader.py .
 COPY service_functions.py .

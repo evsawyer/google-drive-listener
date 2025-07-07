@@ -12,13 +12,19 @@ class Settings(BaseSettings):
     # Webhook URL
     webhook_url: str = os.getenv("WEBHOOK_URL")
 
+    bucket_name: str = 'drive-listener'
+    service_account_folder: str = 'service-account'
+    drive_state_folder: str = 'drive-state'
+    
+    
+
     # Service Account and Storage
     service_account_bucket_name: str = 'service-account-0'
     service_account_key: str = 'knowledge-base-458316-966fdfc500f9.json'
 
-    channel_state_bucket_name: str = 'channel-state'
+    drive_state_bucket_name: str = 'drive-state'
     # the bucket folder should be the drive name - drive id?
-    channel_state_bucket_folder: str = os.getenv("CHANNEL_STATE_BUCKET_FOLDER")
+    drive_state_bucket_folder: str = os.getenv("DRIVE_STATE_BUCKET_FOLDER")
     # credentials_bucket_name: str = 'drive-reader-credentials'
     
     # API Keys
