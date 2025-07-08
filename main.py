@@ -14,6 +14,8 @@ from service_functions import get_drive_service
 import json
 # from refresh_drive_channel import setup_drive_notifications, store_channel_info
 import time
+import asyncio
+
 # Load environment variables
 load_dotenv()
 
@@ -42,21 +44,32 @@ async def health_check():
 class FileIdRequest(BaseModel):
     file_id: str
 
+async def process_file_async(file_id: str):
+    """Background task to process a file"""
+    try:
+        doc = process_files([file_id])  # Pass as a list
+        if doc:
+            logger.info(f"Processing {len(doc)} documents through pipeline...")
+            pipeline_success = await run_pipeline_for_documents(doc)
+            if pipeline_success:
+                logger.info("Successfully processed document")
+            else:
+                logger.error("Failed to process document through the pipeline")
+        else:
+            logger.warning("No document was processed")
+    except Exception as e:
+        logger.error(f"Error processing file {file_id}: {e}")
+
 # Process a single file
 @app.post("/process-file")
 async def process_file(request: FileIdRequest):
     file_id = request.file_id
-    doc = process_files([file_id])  # Pass as a list
-    if doc:
-        logger.info(f"Processing {len(doc)} documents through pipeline...")
-        pipeline_success = await run_pipeline_for_documents(doc)
-        if pipeline_success:
-            logger.info("Successfully processed document")
-        else:
-            logger.error("Failed to process document through the pipeline")
-    else:
-        logger.warning("No document was processed")
-    return {"status": "OK"}
+    
+    # Start background task
+    asyncio.create_task(process_file_async(file_id))
+    
+    # Return immediately
+    return {"status": "accepted", "message": "File queued for processing"}
 
 @app.post("/drive-notifications")
 async def handle_drive_notification(
