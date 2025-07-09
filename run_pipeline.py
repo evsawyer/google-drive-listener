@@ -18,6 +18,7 @@ from llama_index.core.indices import VectorStoreIndex
 from llama_index_cloud_sql_pg import PostgresEngine, PostgresDocumentStore
 from llama_index.vector_stores.pinecone import PineconeVectorStore
 import marvin
+from llama_index.embeddings.openai import OpenAIEmbedding
 
 from pinecone import Pinecone
 from config import settings
@@ -146,6 +147,12 @@ async def setup_pipeline():
     logger.info(f"Creating Pinecone vector store with index: {index_name}, namespace: {namespace}")
     vector_store = PineconeVectorStore(pc.Index(index_name), namespace=namespace)
     
+    # Set up embedding model
+    logger.info("Setting up embedding model...")
+    embed_model = OpenAIEmbedding(
+        model="text-embedding-3-small",
+    )
+
     # Create node parser and extractor
     logger.info("Creating node parser...")
     node_parser = TokenTextSplitter(
@@ -164,18 +171,15 @@ async def setup_pipeline():
     pipeline = IngestionPipeline(
         transformations=[
             node_parser,
-            # description_extractor
+            # description_extractor,
+            embed_model
         ],
         docstore=doc_store,
         vector_store=vector_store,
         docstore_strategy=DocstoreStrategy.UPSERTS
     )
     
-    # Create index
-    logger.info("Creating vector store index...")
-    index = VectorStoreIndex.from_vector_store(pipeline.vector_store)
-    
-    return pipeline, index
+    return pipeline
 
 async def process_documents(docs: List[Document]):
     """Process documents through the LlamaIndex pipeline."""
@@ -187,15 +191,14 @@ async def process_documents(docs: List[Document]):
     
     try:
         # Set up the pipeline
-        pipeline, index = await setup_pipeline()
+        pipeline= await setup_pipeline()
         
         # Run the pipeline
         logger.info("Running ingestion pipeline...")
         nodes = pipeline.run(documents=docs, show_progress=True)
         
         # Insert nodes into the index
-        logger.info(f"Inserting {len(nodes)} nodes into the index...")
-        index.insert_nodes(nodes)
+        logger.info(f"Inserted {len(nodes)} nodes into the index...")
         
         logger.info("Document processing completed successfully")
         return nodes
