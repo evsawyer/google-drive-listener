@@ -17,7 +17,7 @@ from llama_index.core.ingestion import IngestionPipeline, DocstoreStrategy
 from llama_index.core.indices import VectorStoreIndex
 from llama_index_cloud_sql_pg import PostgresEngine, PostgresDocumentStore
 from llama_index.vector_stores.pinecone import PineconeVectorStore
-import marvin
+# import marvin
 from llama_index.embeddings.openai import OpenAIEmbedding
 
 from pinecone import Pinecone
