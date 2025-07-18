@@ -1,4 +1,6 @@
 .env
 *.json
 .venv
-.env.yaml
+.env.
+/test
+__pycache__
